@@ -22,6 +22,16 @@ type cfile struct {
 	userlist   []*cuser
 }
 
+type CFile interface {
+	GetId() int64
+	GetTimestamp() time.Time
+	GetSize() int64
+	GetRef() int32
+	SetId(int64) bool
+	SetSize(int64) bool
+	AddRef(int32) bool
+}
+
 /* CFILE METHODS
  * CONSTRUCTOR: NewCFile(fid 	int64,
 						fname 	string,

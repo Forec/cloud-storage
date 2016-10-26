@@ -3,7 +3,12 @@ package authenticate
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"math/rand"
+	"time"
 )
 
 const (
@@ -52,4 +57,41 @@ func AesDecode(cipherText []byte, plainLen int64, block cipher.Block) ([]byte, e
 	plaintext := make([]byte, plainLen)
 	cfbdec.XORKeyStream(plaintext, cipherText)
 	return []byte(plaintext), nil
+}
+
+func Int64ToBytes(i int64) []byte {
+	var buf = make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(i))
+	return buf
+}
+
+func BytesToInt64(buf []byte) int64 {
+	return int64(binary.BigEndian.Uint64(buf))
+}
+
+func GetRandomString(leng int) string {
+	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	bytes := []byte(str)
+	result := []byte{}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < leng; i++ {
+		result = append(result, bytes[r.Intn(len(bytes))])
+	}
+	return string(result)
+}
+
+func MD5(text string) []byte {
+	ctx := md5.New()
+	ctx.Write([]byte(text))
+	return []byte(hex.EncodeToString(ctx.Sum(nil)))
+}
+
+func GenerateToken(level uint8) []byte {
+	if level <= 1 { // 128 bits, 16 bits token
+		return MD5(GetRandomString(128))[:16]
+	} else if level == 2 { // 192 bits, 24 bits token
+		return MD5(GetRandomString(128))[:24]
+	} else { // 256 bits, 32 bits token
+		return MD5(GetRandomString(128))[:32]
+	}
 }

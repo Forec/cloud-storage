@@ -77,3 +77,12 @@ func TestAesDecoding(t *testing.T) {
 		verify(t, i, "AesDecoding 256bits", []byte(item.out), []byte(item.in), s, err)
 	}
 }
+
+func TestGenerateToken(t *testing.T) {
+	if !(len(GenerateToken(1)) == 16 &&
+		len(GenerateToken(2)) == 24 &&
+		len(GenerateToken(3)) == 32 &&
+		len(GenerateToken(100)) == 32) {
+		t.Errorf("Generate Token Error.")
+	}
+}

@@ -36,6 +36,22 @@ type ufile struct {
 	downloaded int32
 }
 
+type UFile interface {
+	GetFilename() string
+	GetShared() int32
+	GetDownloaded() int32
+	GetPath() string
+	GetPerlink() string
+	GetPointer() *cfile
+	GetOwner() *cuser
+	IncShared() bool
+	IncDowned() bool
+	SetPath(string) bool
+	SetPerlink(string) bool
+	SetPointer(*cfile) bool
+	SetOwner(*cuser) bool
+}
+
 /* UFILE METHODS
  * CONSTRUCTOR: NewUfile(upointer *cfile,
 						 uname    string,
