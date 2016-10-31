@@ -66,7 +66,7 @@ func Int64ToBytes(i int64) []byte {
 }
 
 func BytesToInt64(buf []byte) int64 {
-	return int64(binary.BigEndian.Uint64(buf))
+	return int64(binary.BigEndian.Uint64(buf[:8]))
 }
 
 func GetRandomString(leng int) string {

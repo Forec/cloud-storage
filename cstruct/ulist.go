@@ -40,6 +40,16 @@ func AppendTransmitable(slice []trans.Transmitable, data ...trans.Transmitable) 
 	return slice
 }
 
+func UFileIndexByPath(slice []UFile, path string) []UFile {
+	filter := make([]UFile, 0, 10)
+	for _, uf := range slice {
+		if uf.GetPath() == path {
+			filter = AppendUFile(filter, uf)
+		}
+	}
+	return filter
+}
+
 func UFileIndexById(slice []UFile, id int64) []UFile {
 	filter := make([]UFile, 0, 10)
 	for _, uf := range slice {
@@ -48,4 +58,13 @@ func UFileIndexById(slice []UFile, id int64) []UFile {
 		}
 	}
 	return filter
+}
+
+func UserIndexByName(slice []User, name string) User {
+	for _, uc := range slice {
+		if uc.GetUsername() == name {
+			return uc
+		}
+	}
+	return nil
 }

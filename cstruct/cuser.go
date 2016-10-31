@@ -4,6 +4,7 @@ import (
 	auth "Cloud/authenticate"
 	conf "Cloud/config"
 	trans "Cloud/transmit"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,6 +45,7 @@ type User interface {
 	GetWorkList() []trans.Transmitable
 	GetFilelist() []UFile
 	GetAbsPath() string
+	GetToken() string
 	GoToUpper()
 	GoToPath(string) bool
 	SetPath(string) bool
@@ -55,6 +57,7 @@ type User interface {
 	AddTransmit(trans.Transmitable) bool
 	RemoveTransmit(trans.Transmitable) bool
 	DealWithRequests()
+	DealWithTransmission(trans.Transmitable)
 	Logout()
 }
 
@@ -209,10 +212,41 @@ func (u *cuser) Logout() {
 
 func (u *cuser) DealWithRequests() {
 	err := os.Chdir(u.GetAbsPath())
-	if err != nil{
+	if err != nil {
 		return
 	}
 	for {
-		u.listen.
+		recvB, err := u.listen.RecvBytes()
+		if err != nil {
+			return
+		}
+		command := string(recvB)
+		switch {
+		case len(command) >= 2 && strings.ToUpper(command[:2]) == "ls":
+			u.LS(command)
+		default:
+			continue
+		}
 	}
+}
+
+func (u *cuser) LS(command string) {
+	args := strings.Split(command, " ")
+	for i, arg := range args {
+		args[i] = strings.Trim(arg, " ")
+	}
+	culist := UFileIndexByPath(u.filelist, u.curpath)
+	var returnString string = "FILE\t\t\tCREATED TIME\tSIZE\tSHARED\n"
+	for _, uf := range culist {
+		year, month, day := uf.GetTime().Date()
+		hour, min, _ := uf.GetTime().Clock()
+		returnString += fmt.Sprintf("%s\t\t\t%d %s %d %d:%d\t%v\t%d\n", uf.GetFilename(),
+			day, month.String(), year, hour, min, uf.GetPointer().GetSize(),
+			uf.GetShared())
+	}
+	u.listen.SendBytes([]byte(returnString))
+}
+
+func (u *cuser) DealWithTransmission(t trans.Transmitable) {
+
 }

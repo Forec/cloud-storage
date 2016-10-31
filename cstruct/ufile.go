@@ -42,6 +42,7 @@ type UFile interface {
 	GetDownloaded() int32
 	GetPath() string
 	GetPerlink() string
+	GetTime() time.Time
 	GetPointer() *cfile
 	GetOwner() *cuser
 	IncShared() bool
@@ -83,6 +84,10 @@ func (u *ufile) GetFilename() string {
 
 func (u *ufile) GetShared() int32 {
 	return u.shared
+}
+
+func (u *ufile) GetTime() time.Time {
+	return u.timestamp
 }
 
 func (u *ufile) GetDownloaded() int32 {

@@ -1,6 +1,7 @@
 package cstruct
 
 import (
+	"strings"
 	"time"
 )
 
@@ -81,4 +82,20 @@ func (f *cfile) SetSize(fsize int64) bool {
 func (f *cfile) AddRef(offset int32) bool {
 	f.ref += offset
 	return true
+}
+
+func isFilenameValid(filename string) bool {
+	if strings.Count(filename, "/") > 0 ||
+		strings.Count(filename, "\\") > 0 ||
+		strings.Count(filename, "+") > 0 ||
+		strings.Count(filename, ":") > 0 ||
+		strings.Count(filename, "*") > 0 ||
+		strings.Count(filename, "?") > 0 ||
+		strings.Count(filename, "<") > 0 ||
+		strings.Count(filename, ">") > 0 ||
+		strings.Count(filename, "\"") > 0 {
+		return false
+	} else {
+		return true
+	}
 }
