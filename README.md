@@ -73,10 +73,114 @@ The file `config.go` is in folder `config`, stores the settings and constants fo
 * `GenerateToken(level uint8) []byte` : Generate a token according to `level`.  When `level` is 1 or lower, the token is 16 bytes (128bits); when `level` is 2, the token is 24 bytes (192 bits); else the token is 32 bytes (256 bits).
 
 ### cstruct
+#### User
+You can create a `cuser` struct by factory method `NewCUser(username string, curpath string) *cuser`, however, `cuser` is not exported. Exported interface `User` can be used as the type of `cuser`.
+* `GetUsername() string` : return the username.
+* `GetId() int64` : return user's id.
+* `GetWorkList() []transmit.Transmitable` : return active transmitters currently, not include the main listener.
+* `GetFilelist() []UFile` : return the files this user owns.
+* `GetAbsPath() string` : return the current absolutely path this user in.
+* `GetToken() string` : return the token used by this user, this method is not recommended, it will be removed in the future versions.
+* `GoToUpper()` : change the user's current path.
+* `GoToPath(path string) bool` : return `true` if the user change the current path to `path` successfully.
+* `SetPath(path string) bool` : just set the user's current path as `path` without check, always return true.
+* `SetToken(string) bool` : set the token this user use, this method is not recommended, it will be removed in the future versions.
+* `SetListener(transmit.Transmitable) bool` :  set the main listener for this user, the main listener is the listener only used for transmitting messages and commands.
+* `Verify(pass string) bool` : check whether  `pass` is this user's password, it will be removed in future versions.
+* `AddUFile(UFile) bool` : add a `UFile` value to this user's filelist.
+* `RemoveUFile(UFile) bool` : remove a `UFile` value from this user's filelist.
+* `AddTransmit(transmit.Transmitable) bool` : add a transmitter to this user's worklist, return `true` if succeed since it can be at most `config.MAXTRANSMITTER` transmitters at one time.
+* `RemoveTransmit(transmit.Transmitable) bool` : remove a transmitter from the user's worklist.
+* `DealWithRequests()` : the method for this user to listen and accept requests/commands. Rewrite this method to implement your own logical actions.
+* `DealWithTransmission(transmit.Transmitable)`: not implement yet, a method for transmit data concurrently. Rewrite it as your wish.
+* `Logout()` : logout this user, destroy all the linked connections and clear its memory.
+
+#### CFile
+`CFile` is the interface for real file `cfile`. You can use `NewCFile(fid int64, fsize int64) *cfile` to create a new `cfile` instance.
+* `GetId() int64` : get the cfile's id.
+* `GetTimestamp() time.Time` : get the created time for this cfile.
+* `GetSize() int64` : get the size of this cfile.
+* `GetRef() int32` : get the reference time of this cfile.
+* `SetId(int64) bool` : set this cfile's id.
+* `SetSize(int64) bool` : set this cfile's size.
+* `AddRef(int32) bool` : add an `int32` value for the reference of this cfile.
+
+#### UFile
+`UFile` is the interface for virtual file `ufile`. You can use `NewUFile(upointer *cfile, uowner *cuser, uname string, upath string) *ufile` to create a new `ufile` instance.
+* `GetFilename() string` : get this ufile's filename.
+* `GetShared() int32` : get the reference time of this ufile.
+* `GetDownloaded() int32` : get the downloaded time of this ufile.
+* `GetPath() string` : get the path of this ufile.
+* `GetPerlink() string` : get a permenant link for this ufile.
+* `GetTime() time.Time` : get the created time for this ufile.
+* `GetPointer() *cfile` : get the real `cfile` this ufile points to.
+* `GetOwner() *cuser` : get the owner of this ufile.
+* `IncShared() bool` : inc this ufile's reference time.
+* `IncDowned() bool` : inc this ufile's downloaded time.
+* `SetPath(string) bool` : set the path of this ufile.
+* `SetPerlink(string) bool` : set a permenant  link for this ufile.
+* `SetPointer(*cfile) bool` : set a `cfile` as the reality of this ufile.
+* `SetOwner(*cuser) bool` : set a `cuser` as the user of this ufile.
+
+#### clist operation
+* `func AppendUser(slice []User, data ...User) []User` : append a `User` array to  `slice`, it has better performance than `append` one by one.
+* `func AppendUFile(slice []UFile, data ...UFile) []UFile` : same to the function above, appends `ufile`.
+* `func AppendTransmitable(slice []trans.Transmitable, data ...trans.Transmitable) []trans.Transmitable ` : same to the function above, appends `transmit.Transmitable`.
+* `func UFileIndexByPath(slice []UFile, path string) []UFile` : return a list of `UFile` under `path`.
+* `func UFileIndexById(slice []UFile, id int64) []UFile` : return a list of `UFile` points to a same `CFile` whose id is `id`.
+* `func UserIndexByName(slice []User, name string) User` : return the `User` named `name`.
 
 ### transmit
+`Transmitable` is the interface for `transmitter`. You can use `NewTransmitter(tconn net.Conn, tbuflen int64, token []byte) *transmitter` to create a new `transmitter` instance.
+* The struct of `transmitter` is :
+```golang
+type transmitter struct {
+	conn   net.Conn
+	block  cipher.Block
+	buf    []byte
+	buflen int64
+}
+```
+* `SendFromReader(*bufio.Reader, length int64) bool` : sends data with length `length` in the provided `bufio.Reader` .
+* `SendBytes([]byte) bool` : sends the given bytes.
+* `RecvToWriter(*bufio.Writer) bool` : receive data and write them to the given `bufio.Writer`. This method will get the total length automaticly.
+* `RecvBytes() ([]byte, error)` : receive bytes and return them as `[]bytes`, if failed, return the error too.
+* `RecvUntil(until int64, init int64, <-chan time.Time) (int64, error)` : the current number of bytes received is `init`, and this method will receive until the number arrive `until`. `chan` is a channel for controlling transmitting speed. The method will return the number of bytes at last, if failed, return error too. The buffer used in this method is the buffer in `transmitter` struct.
+* `Destroy()` : destroy this transmitter.
+* `GetConn() net.Conn` : return the socket of this transmitter.
+* `GetBuf() []byte` : return the buffer of this transmitter.
+* `GetBuflen() int64` : return the buffer length of this transmitter.
+* `GetBlock() cipher.Block` : return the cipher block of this transmitter.
 
 ### server
+The `Server` is an exported struct, its definition is below. Database will be added in the future versions.
+```golang
+type Server struct {
+	listener      net.Listener
+	loginUserList []cs.User
+	//db            *sql.DB
+}
+```
+* `InitDB() bool` : initial the database for the server.
+* `AddUser(u cstruct.User)` : add a user to the online list.
+* `RemoveUser(u cstruct.User) bool` : remove user `u` from the online list, return `true` if succeed.
+* `Login(t transmit.Transmitable) (cstruct.User, int)` : login a user from the transmitter `t`.
+* `Communicate(conn net.Conn, level uint8)` : after accept the client's connect request, this method will authenticate the client and start providing service.
+* `Run(ip string, port int, level int)` : runs your server in `ip:port`, level means the safety level, discussed before.
+
+### client
+The `Client` is an exported struct, its definition is below.
+```golang
+type Client struct {
+	remote   trans.Transmitable
+	level    uint8
+	worklist []trans.Transmitable
+	token    []byte
+}
+```
+* `NewClient(level int) *Client` : returns a new `Client`, level assigns the safety level.
+* `Connect(ip string, port int) bool` : let your client connects `ip:port`, if succeed, it will return `true.
+* `Authenticate(username string, passwd string) bool` : authenticate the client. If succeed, it will return `true`.
 
 ## TODO
 * ~~Authorisation check~~
@@ -93,13 +197,17 @@ The file `config.go` is in folder `config`, stores the settings and constants fo
  * Instructions
  * ~~Head length~~
  * ~~Authorisation~~
+* Project
+ * logic
+ * database
 
 ## Update-Logs
 * 2016-10-17: Build repository.
 * 2016-10-21: Add basic packages and test cases. Only packages.
 * 2016-10-27: Finish basic packages and test cases. Left `Login()` and `Communicate()` to test, next is finish parsing instructions.
 * 2016-10-31: Finish authentication part and `Login()`, client can recieve token and pass the test. Write a basic struct of `Communicate()`. Add some functions in `transmit` and `server` these days. Next step is finish `Communicate()` by the protocal.
-* 2016-11-1: Add document for current version.
+* 2016-11-1: Add document for part of the current version.
+* 2016-11-2: Add document for current version.
 
 # License
 All codes in this repository are licensed under the terms you may find in the file named "LICENSE" in this directory.
