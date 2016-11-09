@@ -1,13 +1,36 @@
+/*
+author: Forec
+last edit date: 2016/11/09
+email: forec@bupt.edu.cn
+LICENSE
+Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
+
+Permission to use, copy, modify, and/or distribute this code for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
 package cstruct
 
 import (
 	auth "Cloud/authenticate"
 	conf "Cloud/config"
 	trans "Cloud/transmit"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 /* CUSER DECLARATION
@@ -36,7 +59,6 @@ type cuser struct {
 						curpath 	string) *cuser
  * MODIFIER: Set[VALUE] (v VALUE_TYPE) 		bool
 			 AddUFile	(f *ufile) 	   		bool
- * VERIFIER: Verify		(psw string)   		bool
 */
 
 type User interface {
@@ -51,20 +73,19 @@ type User interface {
 	SetPath(string) bool
 	SetToken(string) bool
 	SetListener(trans.Transmitable) bool
-	Verify(string) bool
 	AddUFile(UFile) bool
 	RemoveUFile(UFile) bool
 	AddTransmit(trans.Transmitable) bool
 	RemoveTransmit(trans.Transmitable) bool
-	DealWithRequests()
-	DealWithTransmission(trans.Transmitable)
+	DealWithRequests(*sql.DB)
+	DealWithTransmission(*sql.DB, trans.Transmitable)
 	Logout()
 }
 
-func NewCUser(username string, curpath string) *cuser {
+func NewCUser(username string, uid int64, curpath string) *cuser {
 	u := new(cuser)
 	u.listen = nil
-	u.id = 1 //TODO
+	u.id = uid
 	u.username = username
 	u.curpath = curpath
 	u.worklist = nil
@@ -153,11 +174,6 @@ func (u *cuser) GetToken() string {
 	return u.token
 }
 
-func (u *cuser) Verify(psw string) bool {
-	// TODO
-	return true
-}
-
 func (u *cuser) AddUFile(f UFile) bool {
 	if u.filelist == nil {
 		u.filelist = make([]UFile, 0, 10)
@@ -204,49 +220,145 @@ func (u *cuser) Logout() {
 			ut.Destroy()
 		}
 	}
-	u.worklist = nil
-	u.token = ""
-	u.id = 0xffffffff
-	u.username = auth.GetRandomString(len(u.username))
+	fmt.Println(u.username + " logged out")
+	//u.worklist = nil
+	//u.token = ""
+	//u.id = 0xffffffff
+	//u.username = auth.GetRandomString(len(u.username))
 }
 
-func (u *cuser) DealWithRequests() {
-	err := os.Chdir(u.GetAbsPath())
-	if err != nil {
-		return
-	}
+func (u *cuser) DealWithRequests(db *sql.DB) {
+	u.curpath = "//"
+	fmt.Println(u.username + "Start deal with args")
 	for {
 		recvB, err := u.listen.RecvBytes()
 		if err != nil {
 			return
 		}
 		command := string(recvB)
+		fmt.Println(command)
 		switch {
-		case len(command) >= 2 && strings.ToUpper(command[:2]) == "ls":
-			u.LS(command)
+		case len(command) >= 2 && strings.ToUpper(command[:2]) == "MV":
+			u.mv(db, command)
+		case len(command) >= 2 && strings.ToUpper(command[:2]) == "LS":
+			u.ls(db, command)
+		case len(command) >= 5 && strings.ToUpper(command[:5]) == "TOUCH":
+			u.touch(db, command)
 		default:
-			continue
+			u.listen.SendBytes([]byte("Invalid Command"))
 		}
 	}
 }
 
-func (u *cuser) LS(command string) {
-	args := strings.Split(command, " ")
+func (u *cuser) mv(db *sql.DB, command string) {
+
+}
+
+func (u *cuser) touch(db *sql.DB, command string) {
+	args := strings.Split(command, conf.SEPERATER)
+	var valid bool = true
+	var isdir int
+	var err error
+	if len(args) != 4 {
+		valid = false
+		goto TOUCH_VERIFY
+	}
 	for i, arg := range args {
 		args[i] = strings.Trim(arg, " ")
 	}
-	culist := UFileIndexByPath(u.filelist, u.curpath)
-	var returnString string = "FILE\t\t\tCREATED TIME\tSIZE\tSHARED\n"
-	for _, uf := range culist {
-		year, month, day := uf.GetTime().Date()
-		hour, min, _ := uf.GetTime().Clock()
-		returnString += fmt.Sprintf("%s\t\t\t%d %s %d %d:%d\t%v\t%d\n", uf.GetFilename(),
-			day, month.String(), year, hour, min, uf.GetPointer().GetSize(),
-			uf.GetShared())
+	isdir, err = strconv.Atoi(args[3])
+	if err != nil && strings.ToUpper(args[0]) != "TOUCH" || !isFilenameValid(args[1]) ||
+		isPathFormatValid(args[2]) || isdir != 0 && isdir != 1 {
+		valid = false
+		goto TOUCH_VERIFY
+	}
+	_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s',
+	 '', '%s', 0, 0, '%s', 1, '', %d)`,
+		u.id, args[2], time.Now().Format("2006-01-02 15:04:05"), args[1], isdir))
+	if err != nil {
+		valid = false
+	}
+TOUCH_VERIFY:
+	if !valid {
+		u.listen.SendBytes(auth.Int64ToBytes(int64(200)))
+		return
+	} else {
+		u.listen.SendBytes(auth.Int64ToBytes(int64(400)))
+		return
+	}
+}
+
+func (u *cuser) ls(db *sql.DB, command string) {
+	args := strings.Split(command, conf.SEPERATER)
+	valid := true
+	for i, arg := range args {
+		args[i] = strings.Trim(arg, " ")
+	}
+	argAll := "%"
+	for i := 1; i < len(args); i++ {
+		if args[i] != "" {
+			argAll += args[i] + "%"
+		}
+	}
+	searchPath := u.curpath
+	if searchPath == "//" {
+		searchPath = "/"
+	}
+	queryString := fmt.Sprintf("select * from ufile where ownerid=%d and path like '%s%%/' and filename like '%s'",
+		u.id, searchPath, argAll)
+	fmt.Println(queryString)
+	ufilelist, err := db.Query(queryString)
+	var returnString string = fmt.Sprintf("FILE%sCREATED TIME%sSIZE%sSHARED%sMODE",
+		conf.SEPERATER, conf.SEPERATER, conf.SEPERATER, conf.SEPERATER)
+	var uid, ownerid, cfileid, shared, downloaded int
+	var private, isdir bool
+	var path, perlink, filename, linkpass, created string
+	var cuid, csize, cref int
+	var cmd5, ccreated string
+
+	if err != nil {
+		valid = false
+		goto LS_VERIFY
+	}
+
+	for ufilelist.Next() {
+		err = ufilelist.Scan(&uid, &ownerid, &cfileid, &path, &perlink, &created, &shared, &downloaded,
+			&filename, &private, &linkpass, &isdir)
+		if err != nil {
+			fmt.Println(err.Error())
+			valid = false
+			break
+		}
+		if cfileid >= 0 {
+			tcfile := db.QueryRow(fmt.Sprintf("SELECT * FROM cfile where uid='%d'", cfileid))
+			if tcfile == nil {
+				valid = false
+				break
+			}
+			err = tcfile.Scan(&cuid, &cmd5, &csize, &cref, &ccreated)
+			if err != nil {
+				valid = false
+				break
+			}
+		} else {
+			csize = 0
+		}
+		returnString += fmt.Sprintf("\n%s%s%s%s%d%s%d%s", filename, conf.SEPERATER,
+			created, conf.SEPERATER, csize, conf.SEPERATER, shared, conf.SEPERATER)
+		if isdir {
+			returnString += "DIR"
+		} else {
+			returnString += "FILE"
+		}
+	}
+LS_VERIFY:
+	if !valid {
+		u.listen.SendBytes([]byte("error happens when querying files"))
+		return
 	}
 	u.listen.SendBytes([]byte(returnString))
 }
 
-func (u *cuser) DealWithTransmission(t trans.Transmitable) {
+func (u *cuser) DealWithTransmission(db *sql.DB, t trans.Transmitable) {
 
 }

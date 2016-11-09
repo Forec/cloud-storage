@@ -1,3 +1,23 @@
+/*
+author: Forec
+last edit date: 2016/11/09
+email: forec@bupt.edu.cn
+LICENSE
+Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
+
+Permission to use, copy, modify, and/or distribute this code for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
 package transmit
 
 import (
@@ -65,12 +85,12 @@ func (t *transmitter) SendBytes(toSend []byte) bool {
 	}
 	chRate := time.Tick(2e3)
 	alSend := 0
+	var length int
 	for {
 		<-chRate
 		if totalLength == alSend {
 			break
 		}
-		var length int
 		if totalLength-alSend < int(t.buflen/3) {
 			length = totalLength - alSend
 		} else {
@@ -142,7 +162,7 @@ func (t *transmitter) RecvBytes() ([]byte, error) {
 	}
 	chRate := time.Tick(1e3)
 	length, err := t.RecvUntil(8, 0, chRate)
-	if err != nil || length != 8 {
+	if err != nil {
 		fmt.Println("ERROR: Connection Error.")
 		return nil, err
 	}
@@ -151,7 +171,8 @@ func (t *transmitter) RecvBytes() ([]byte, error) {
 	var recvLength int64 = 0
 	var plength int64 = 0
 	var elength int64 = 0
-	var pRecv int64 = 0
+	var pRecv int64 = length - 8
+	copy(t.buf, t.buf[8:length])
 	returnBytes := make([]byte, 0, conf.AUTHEN_BUFSIZE)
 	for {
 		pRecv, err = t.RecvUntil(int64(16), pRecv, chRate)
@@ -186,7 +207,7 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 	}
 	chRate := time.Tick(1e3)
 	length, err := t.RecvUntil(8, 0, chRate)
-	if err != nil || length != 8 {
+	if err != nil {
 		fmt.Println("ERROR: Connection Error.")
 		return false
 	}
@@ -195,7 +216,8 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 	var recvLength int64 = 0
 	var plength int64 = 0
 	var elength int64 = 0
-	var pRecv int64 = 0
+	var pRecv int64 = length - 8
+	copy(t.buf, t.buf[8:length])
 	for {
 		pRecv, err = t.RecvUntil(int64(16), pRecv, chRate)
 		if err != nil {

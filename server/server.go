@@ -1,3 +1,23 @@
+/*
+author: Forec
+last edit date: 2016/11/09
+email: forec@bupt.edu.cn
+LICENSE
+Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
+
+Permission to use, copy, modify, and/or distribute this code for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
 package server
 
 import (
@@ -5,10 +25,9 @@ import (
 	conf "Cloud/config"
 	cs "Cloud/cstruct"
 	trans "Cloud/transmit"
-	//"database/sql"
-	//	"database/sql/driver"
+	"database/sql"
 	"fmt"
-	//_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"net"
 	"time"
 )
@@ -16,15 +35,23 @@ import (
 type Server struct {
 	listener      net.Listener
 	loginUserList []cs.User
-	//db            *sql.DB
+	db            *sql.DB
 }
 
 func (s *Server) InitDB() bool {
 	var err error
-	//s.db, err = sql.Open(conf.DATABASE_TYPE, conf.DATABASE_PATH)
+	s.db, err = sql.Open(conf.DATABASE_TYPE, conf.DATABASE_PATH)
 	if err != nil {
 		return false
 	}
+	s.db.Exec(`create table cuser (uid INTEGER PRIMARY KEY AUTOINCREMENT,
+		username VARCHAR(64), password VARCHAR(128), created DATE)`)
+	s.db.Exec(`create table ufile (uid INTEGER PRIMARY KEY AUTOINCREMENT, 
+		ownerid INTEGER, cfileid INTEGER, path VARCHAR(256), perlink VARCHAR(128), 
+		created DATE, shared INTEGER, downloaded INTEGER, filename VARCHAR(128),
+		private BOOLEAN, linkpass VARCHAR(4)), isdir BOOLEAN`)
+	s.db.Exec(`create table cfile (uid INTEGER PRIMARY KEY AUTOINCREMENT,
+		md5 VARCHAR(32), size INTEGER, ref INTEGER, created DATE)`)
 	return true
 }
 
@@ -35,7 +62,7 @@ func (s *Server) AddUser(u cs.User) {
 func (s *Server) RemoveUser(u cs.User) bool {
 	for i, uc := range s.loginUserList {
 		if uc == u {
-			s.loginUserList = append(s.loginUserList[:i], s.loginUserList[i:]...)
+			s.loginUserList = append(s.loginUserList[:i], s.loginUserList[i+1:]...)
 			return true
 		}
 	}
@@ -63,12 +90,6 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	if err != nil {
 		return nil, -1
 	}
-	// test
-	if string(nameApass[:nmLength]) != conf.TEST_USERNAME ||
-		string(nameApass[nmLength:]) != conf.TEST_PASSWORD {
-		fmt.Println("FAILED")
-		return nil, -1
-	}
 
 	pc := cs.UserIndexByName(s.loginUserList, string(nameApass[:nmLength]))
 	// 该连接由已登陆用户建立
@@ -84,15 +105,25 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		}
 	}
 	// 该连接来自新用户
-	rc := cs.NewCUser(string(nameApass[:nmLength]), "/")
+	username := string(nameApass[:nmLength])
+	row := s.db.QueryRow(fmt.Sprintf("SELECT * FROM cuser where username='%s'", username))
+	if row == nil {
+		return nil, -1
+	}
+	var uid int
+	var susername string
+	var spassword string
+	var screated string
+	err = row.Scan(&uid, &susername, &spassword, &screated)
+	if err != nil || spassword != string(nameApass[nmLength:]) {
+		return nil, -1
+	}
+	rc := cs.NewCUser(string(nameApass[:nmLength]), int64(uid), "/")
 	if rc == nil {
 		return nil, -1
 	}
-	if rc.Verify(string(nameApass[nmLength:])) == true {
-		rc.SetListener(t)
-		return rc, 0
-	}
-	return nil, -1
+	rc.SetListener(t)
+	return rc, 0
 }
 
 func (s *Server) Communicate(conn net.Conn, level uint8) {
@@ -106,6 +137,7 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 	mainT := trans.NewTransmitter(conn, conf.AUTHEN_BUFSIZE, s_token)
 	rc, mode := s.Login(mainT)
 	if rc == nil || mode == -1 {
+		mainT.Destroy()
 		return
 	}
 	if !mainT.SendBytes(s_token) {
@@ -114,11 +146,11 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 	if mode == 0 {
 		rc.SetToken(string(s_token))
 		s.AddUser(rc)
-		rc.DealWithRequests()
+		rc.DealWithRequests(s.db)
 		rc.Logout()
 		s.RemoveUser(rc)
 	} else {
-		rc.DealWithTransmission(mainT)
+		rc.DealWithTransmission(s.db, mainT)
 	}
 	return
 }
@@ -134,6 +166,7 @@ func (s *Server) Run(ip string, port int, level int) {
 		return
 	}
 	defer s.listener.Close()
+	s.loginUserList = make([]cs.User, 0, conf.START_USER_LIST)
 	for {
 		sconn, err := s.listener.Accept()
 		if err != nil {

@@ -29,18 +29,18 @@ The authentication process between server and client is list below:
 ### Transmission
 The transmission protocal in normal data (bytes) is :
 * Send 8 bytes without ciphering, specify the total length of stream.
-* For each part of stream (since the buf has a limit length, we need to split the stream into several parts), we use the following format to transmit. The first 8 bits are the length of data in plain text form, the second 8 bits is the  length of encoded data + 16, and follows by the encoded data.
+* For each part of stream (since the buf has a limit length, we need to split the stream into several parts), we use the following format to transmit. The first 8 bytes are the length of data in plain text form, the second 8 bytes is the  length of encoded data + 16, and follows by the encoded data.
 ```
- --------------------------------------
-|  8 bits  |  8 bits  |  encoded data  |
- --------------------------------------
+ ----------------------------------------
+|  8 bytes  |  8 bytes  |  encoded data  |
+ ----------------------------------------
 ```
 
-* The transmission protocal in authentication is is the following format. The first 8 bits are the length of username+password in plain text form, the second 8 bits are the length of encoded username+password, and the final 8 bits are the length of username.
+* The transmission protocal in authentication is is the following format. The first 8 bytes are the length of username+password in plain text form, the second 8 bytes are the length of encoded username+password, and the final 8 bytes are the length of username.
 ```
- ------------------------------------------------------------------
-|  8 bits  |  8 bits  |  8 bits  |  encoded username and password  |
- ------------------------------------------------------------------
+ ---------------------------------------------------------------------
+|  8 bytes  |  8 bytes  |  8 bytes  |  encoded username and password  |
+ ---------------------------------------------------------------------
 ```
 
 ### MultiProgramming
@@ -199,7 +199,7 @@ type Client struct {
  * ~~Authorisation~~
 * Project
  * logic
- * database
+ * ~~database~~
 
 ## Update-Logs
 * 2016-10-17: Build repository.
@@ -208,6 +208,7 @@ type Client struct {
 * 2016-10-31: Finish authentication part and `Login()`, client can recieve token and pass the test. Write a basic struct of `Communicate()`. Add some functions in `transmit` and `server` these days. Next step is finish `Communicate()` by the protocal.
 * 2016-11-1: Add document for part of the current version.
 * 2016-11-2: Add document for current version.
+* 2016-11-9: Migrate the data source from memory to database, fix errors in `transmit`, add two logic actions in `DealWithRequests()`. The basic frame is  already built. To make a simple complete cloud storage server, the only thing need to be done is finish `DealWithRequests()`. Some problems left: the struct is not wrapped well, the inner implement is opened to users. Part of the `server` and `cstruct` should be reconstructed  after the demo finished.
 
 # License
 All codes in this repository are licensed under the terms you may find in the file named "LICENSE" in this directory.

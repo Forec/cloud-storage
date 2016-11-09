@@ -1,11 +1,33 @@
+/*
+author: Forec
+last edit date: 2016/11/09
+email: forec@bupt.edu.cn
+LICENSE
+Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
+
+Permission to use, copy, modify, and/or distribute this code for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
 package main
 
 import (
 	auth "Cloud/authenticate"
 	conf "Cloud/config"
 	trans "Cloud/transmit"
+	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"time"
 )
 
@@ -80,12 +102,30 @@ func (c *Client) Authenticate(username string, passwd string) bool {
 
 func main() {
 	c := NewClient(1)
-	if !c.Connect("127.0.0.1", 10087) {
+	if !c.Connect(conf.TEST_IP, conf.TEST_PORT) {
 		fmt.Println("CONNECTION WRONG")
-	}
-	if c.Authenticate(conf.TEST_USERNAME, conf.TEST_PASSWORD) {
-		fmt.Println("AUTHENTICATION SUCCESS")
 	} else {
-		fmt.Println("AUTHENTICATION FAILED")
+		if c.Authenticate(conf.TEST_USERNAME, conf.TEST_PASSWORD) {
+			fmt.Println("AUTHENTICATION SUCCESS")
+		} else {
+			fmt.Println("AUTHENTICATION FAILED")
+			return
+		}
+	}
+	inputReader := bufio.NewReader(os.Stdin)
+	for {
+		input, err := inputReader.ReadString('\n')
+		if err != nil {
+			fmt.Println("ERROR: Failed to get your command.\n")
+			continue
+		}
+		c.remote.SendBytes([]byte(input))
+		recvB, err := c.remote.RecvBytes()
+		if err != nil {
+			fmt.Println("ERROR: Failed to receive remote reply")
+			c.remote.Destroy()
+			return
+		}
+		fmt.Println(string(recvB))
 	}
 }
