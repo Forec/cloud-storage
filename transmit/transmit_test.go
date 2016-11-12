@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/09
+last edit date: 2016/11/13
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -69,6 +69,7 @@ func TestTransmission(t *testing.T) {
 		t.Errorf("Transmit: Cannot Open TestInFile")
 		return
 	}
+	defer file.Close()
 	fileReader := bufio.NewReader(file)
 	totalFileLength, err := GetFileSize(test_in_filename)
 	if err != nil {

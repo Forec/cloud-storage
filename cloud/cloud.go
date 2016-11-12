@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/09
+last edit date: 2016/11/13
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -23,7 +23,9 @@ package main
 import (
 	conf "Cloud/config"
 	cloud "Cloud/server"
+	"bufio"
 	"fmt"
+	"os"
 )
 
 func main() {
@@ -31,6 +33,16 @@ func main() {
 	if !s.InitDB() {
 		fmt.Println("db ERROR")
 	} else {
-		s.Run(conf.TEST_IP, conf.TEST_PORT, conf.TEST_SAFELEVEL)
+		go s.Run(conf.TEST_IP, conf.TEST_PORT, conf.TEST_SAFELEVEL)
+		go s.CheckBroadCast()
+	}
+	inputReader := bufio.NewReader(os.Stdin)
+	for {
+		input, err := inputReader.ReadString('\n')
+		if err != nil {
+			fmt.Println("ERROR: Failed to get your command.\n")
+			continue
+		}
+		s.BroadCastToAll(input)
 	}
 }

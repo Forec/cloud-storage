@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/09
+last edit date: 2016/11/13
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -21,6 +21,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package cstruct
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -115,6 +116,7 @@ func isFilenameValid(filename string) bool {
 		strings.Count(filename, "<") > 0 ||
 		strings.Count(filename, ">") > 0 ||
 		strings.Count(filename, "\"") > 0 {
+		fmt.Println("filename not valid: ", filename)
 		return false
 	} else {
 		return true
@@ -122,19 +124,21 @@ func isFilenameValid(filename string) bool {
 }
 
 func isPathFormatValid(path string) bool {
-	if len(path) < 2 ||
+	if len(path) < 1 ||
 		len(path) > 256 ||
 		path[0] != '/' ||
-		path[1] != '/' ||
+		path[len(path)-1] != '/' ||
 		strings.Count(path, "../") > 0 ||
 		strings.Count(path, "/..") > 0 ||
 		strings.Count(path, "+") > 0 ||
 		strings.Count(path, ":") > 0 ||
 		strings.Count(path, "*") > 0 ||
 		strings.Count(path, "?") > 0 ||
+		strings.Count(path, "%") > 0 ||
 		strings.Count(path, "<") > 0 ||
 		strings.Count(path, ">") > 0 ||
 		strings.Count(path, "\"") > 0 {
+		fmt.Println("filepath not valid: ", path)
 		return false
 	} else {
 		return true

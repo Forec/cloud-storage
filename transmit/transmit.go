@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/09
+last edit date: 2016/11/13
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -39,6 +39,7 @@ type Transmitable interface {
 	RecvBytes() ([]byte, error)
 	RecvUntil(int64, int64, <-chan time.Time) (int64, error)
 	Destroy()
+	SetBuflen(int64) bool
 	GetConn() net.Conn
 	GetBuf() []byte
 	GetBuflen() int64
@@ -46,10 +47,11 @@ type Transmitable interface {
 }
 
 type transmitter struct {
-	conn   net.Conn
-	block  cipher.Block
-	buf    []byte
-	buflen int64
+	conn    net.Conn
+	block   cipher.Block
+	buf     []byte
+	recvLen int64
+	buflen  int64
 }
 
 func NewTransmitter(tconn net.Conn, tbuflen int64, token []byte) *transmitter {
@@ -62,7 +64,20 @@ func NewTransmitter(tconn net.Conn, tbuflen int64, token []byte) *transmitter {
 	}
 	t.buf = make([]byte, t.buflen)
 	t.block = auth.NewAesBlock(token)
+	t.recvLen = 0
 	return t
+}
+
+func (t *transmitter) SetBuflen(buflen int64) bool {
+	if buflen <= t.buflen {
+		t.buflen = buflen
+		t.buf = t.buf[:t.buflen]
+		return true
+	} else {
+		t.buf = make([]byte, buflen)
+		t.buflen = buflen
+		return true
+	}
 }
 
 func GetFileSize(path string) (size int64, err error) {
@@ -118,10 +133,20 @@ func (t *transmitter) SendFromReader(reader *bufio.Reader, totalLength int64) bo
 	if err != nil {
 		return false
 	}
+	sendLength := totalLength
 	chRate := time.Tick(2e3)
+	var encodeBufLen int64 = t.buflen/3 - 16
+	var length int
 	for {
 		<-chRate
-		length, err := reader.Read(t.buf[16 : t.buflen/3])
+		if sendLength <= 0 {
+			return true
+		}
+		if sendLength >= encodeBufLen {
+			length, err = reader.Read(t.buf[16 : 16+encodeBufLen])
+		} else {
+			length, err = reader.Read(t.buf[16 : 16+sendLength])
+		}
 		if err != nil {
 			return false
 		}
@@ -133,6 +158,7 @@ func (t *transmitter) SendFromReader(reader *bufio.Reader, totalLength int64) bo
 		if err != nil {
 			return false
 		}
+		sendLength -= int64(length)
 		if length == 0 {
 			return true
 		}
@@ -161,20 +187,24 @@ func (t *transmitter) RecvBytes() ([]byte, error) {
 		return nil, err
 	}
 	chRate := time.Tick(1e3)
-	length, err := t.RecvUntil(8, 0, chRate)
+	length, err := t.RecvUntil(8, t.recvLen, chRate)
 	if err != nil {
 		fmt.Println("ERROR: Connection Error.")
 		return nil, err
 	}
 	totalLength := auth.BytesToInt64(t.buf[:8])
 	//percent := 0
-	var recvLength int64 = 0
+	var toRecvLength int64 = totalLength
 	var plength int64 = 0
 	var elength int64 = 0
 	var pRecv int64 = length - 8
 	copy(t.buf, t.buf[8:length])
 	returnBytes := make([]byte, 0, conf.AUTHEN_BUFSIZE)
 	for {
+		if toRecvLength == int64(0) {
+			t.recvLen = pRecv
+			return returnBytes, nil
+		}
 		pRecv, err = t.RecvUntil(int64(16), pRecv, chRate)
 		if err != nil {
 			return nil, err
@@ -191,10 +221,7 @@ func (t *transmitter) RecvBytes() ([]byte, error) {
 			return nil, err
 		}
 		returnBytes = append(returnBytes, receive...)
-		recvLength = recvLength + plength
-		if recvLength == int64(totalLength) {
-			return returnBytes, nil
-		}
+		toRecvLength -= plength
 		copy(t.buf, t.buf[elength:pRecv])
 		pRecv -= elength
 	}
@@ -206,7 +233,7 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 		return false
 	}
 	chRate := time.Tick(1e3)
-	length, err := t.RecvUntil(8, 0, chRate)
+	length, err := t.RecvUntil(8, t.recvLen, chRate)
 	if err != nil {
 		fmt.Println("ERROR: Connection Error.")
 		return false
@@ -219,14 +246,22 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 	var pRecv int64 = length - 8
 	copy(t.buf, t.buf[8:length])
 	for {
+		if recvLength == int64(totalLength) {
+			t.recvLen = pRecv
+			writer.Flush()
+			fmt.Println("File Transimission Complete.")
+			return true
+		}
 		pRecv, err = t.RecvUntil(int64(16), pRecv, chRate)
 		if err != nil {
+			fmt.Println("receive head:", err.Error())
 			return false
 		}
 		plength = auth.BytesToInt64(t.buf[:8])
 		elength = auth.BytesToInt64(t.buf[8:16])
 		pRecv, err = t.RecvUntil(elength, pRecv, chRate)
 		if err != nil {
+			fmt.Println("receive body:", err.Error())
 			return false
 		}
 		receive, err := auth.AesDecode(t.buf[16:elength], plength, t.block)
@@ -240,15 +275,6 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 			return false
 		}
 		recvLength = recvLength + plength
-		//if 100*fileLength/totalFileLength > percent {
-		//	percent = 100 * fileLength / totalFileLength
-		//	fmt.Printf("Received: %v%%...\n", percent)
-		//}
-		if recvLength == int64(totalLength) {
-			writer.Flush()
-			fmt.Println("File Transimission Complete.")
-			return true
-		}
 		copy(t.buf, t.buf[elength:pRecv])
 		pRecv -= elength
 	}

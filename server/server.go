@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/09
+last edit date: 2016/11/13
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -52,7 +52,72 @@ func (s *Server) InitDB() bool {
 		private BOOLEAN, linkpass VARCHAR(4)), isdir BOOLEAN`)
 	s.db.Exec(`create table cfile (uid INTEGER PRIMARY KEY AUTOINCREMENT,
 		md5 VARCHAR(32), size INTEGER, ref INTEGER, created DATE)`)
+	s.db.Exec(`create table cmessages (mesid INTEGER PRIMARY KEY AUTOINCREMENT,
+		targetid INTEGER, sendid INTEGER, message VARCHAR(512), created DATE)`)
 	return true
+}
+
+func (s *Server) CheckBroadCast() {
+	chRate := time.Tick(conf.CHECK_MESSAGE_SEPERATE * time.Second)
+	var queryRows *sql.Rows
+	var queryRow *sql.Row
+	var mesid, uid, messageCount int
+	var message, created string
+	var err error
+	for {
+		<-chRate
+		for _, u := range s.loginUserList {
+			queryRow = s.db.QueryRow(fmt.Sprintf(`select count (*) from cmessages where
+				targetid=%d`, u.GetId()))
+			if queryRow == nil {
+				continue
+			}
+			err = queryRow.Scan(&messageCount)
+			if err != nil {
+				continue
+			}
+			id_list := make([]int, 0, messageCount)
+			queryRows, err = s.db.Query(fmt.Sprintf(`select mesid, sendid, message, created
+				 from cmessages where targetid=%d`, u.GetId()))
+			if err != nil {
+				fmt.Println("query error: ", err.Error())
+				continue
+			}
+			for queryRows.Next() {
+				err = queryRows.Scan(&mesid, &uid, &message, &created)
+				if err != nil {
+					fmt.Println("scan error: ", err.Error())
+					break
+				}
+				if s.BroadCast(u, fmt.Sprintf("%d%s%s%s%s", uid, conf.SEPERATER, message,
+					conf.SEPERATER, created)) {
+					id_list = append(id_list, mesid)
+				} else {
+					break
+				}
+			}
+			for _, id := range id_list {
+				_, err = s.db.Exec(fmt.Sprintf(`delete from cmessages where mesid=%d`, id))
+				if err != nil {
+					fmt.Println("delete error: ", err.Error())
+					continue
+				}
+			}
+		}
+	}
+}
+
+func (s *Server) BroadCastToAll(message string) {
+	for _, u := range s.loginUserList {
+		s.BroadCast(u, message)
+	}
+}
+
+func (s *Server) BroadCast(u cs.User, message string) bool {
+	if u.GetInfos() == nil {
+		return false
+	}
+	return u.GetInfos().SendBytes([]byte(message))
 }
 
 func (s *Server) AddUser(u cs.User) {
@@ -97,10 +162,13 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		if pc.GetToken() != string(nameApass[nmLength:]) {
 			return nil, -1
 		} else {
-			if pc.AddTransmit(t) {
-				return pc, 1
+			// background message receiver
+			if pc.GetInfos() == nil {
+				pc.SetInfos(t)
+				return pc, 2
 			} else {
-				return nil, -1
+				// transmission
+				return pc, 1
 			}
 		}
 	}
@@ -149,10 +217,9 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 		rc.DealWithRequests(s.db)
 		rc.Logout()
 		s.RemoveUser(rc)
-	} else {
+	} else if mode == 1 && mainT.SetBuflen(conf.BUFLEN) && rc.AddTransmit(mainT) {
 		rc.DealWithTransmission(s.db, mainT)
 	}
-	return
 }
 
 func (s *Server) Run(ip string, port int, level int) {

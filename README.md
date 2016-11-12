@@ -2,6 +2,8 @@
 
 > A simple package written in Golang 1.7.3 for building cloud storage server or client, also a task for my 2016 course design. you can use the code under limit of the license in this repository.
 
+与项目同步更新的中文指南发布在我的博客 [专栏](http://blog.forec.cn/columns/index.html) 《云存储系统从入门到放弃》中。此 README 将在项目完成后统一更新，项目完成前 README 中的内容可能与项目不统一。
+
 ## Theory
 ### File Store
 * To capture how this simple cloud storage works, considering the following text graph.
@@ -19,12 +21,19 @@
 * The real files are recorded as `cfile`, each `cfile` may be pointed by many `ufile`, because many users may store a same file in their "different" user spaces. They may name the same file different names, but the content of the file is same exactly, so the server should only store one copy of the real file, and use `ufile` to link the user and the real file. **This is similar to the table used to build many-many relationships in databases**.
 
 ### Authentication
-The authentication process between server and client is list below:
+Once the client login, the authentication process between server and client is list below:
 * Client ask for connection
 * Server sends a `token` for client
 * Client enciphers the username and password (the password is the md5 or sha1 of plain password exactly, we don't suggest storing plain password in database) by `token` received
-* Server verifies the username and password, if valid, return the client that token again, otherwise return another token.
-* Client verify whether the two tokens are same, same means success
+* Server verifies the username and password, if valid, return the client that token again, otherwise disconnect.
+* Client verifis whether the two tokens are same, same means success, then starts sending commands.
+
+If the client has already been online, the new connection built between client and server should deal with transmission. The authentication process is list below:
+* Client ask for connection
+* Server sends a `token1` for client
+* Client enciphers the username and token (the token is the one when logged in) by the token1 received
+* Server finds the username is already online, and then verifies token. If valid, the server will return token1 again, otherwise disconnect.
+* Client verifis whether the two tokens are same, same means success, then starts transmission.
 
 ### Transmission
 The transmission protocal in normal data (bytes) is :
@@ -51,18 +60,23 @@ Each user has a main transmitter (the object for transmitting data, declared in 
 ### config
 The file `config.go` is in folder `config`, stores the settings and constants for the package.
 * `USER_FOLDER` : The prefix for user. You can think it as the folder you store users' files. Maybe we will use database to store those files in the future version.
+* `STORE_PATH` : The path for saving files.
 * `AUTHEN_BUFSIZE` : The bufsize for main transmitters.
+* `BUFLEN`: The bufsize for transmission.
 * `MAXTRANSMITTER` : The maximum number of transmitters can be created at same time by a user.
 * `DATABASE_TYPE` : The type of database you want to use.
 * `DATABASE_PATH` : The path of your database.
+* `START_USER_LIST`: The server needs to keep an online user list. This is the capacity of the list when the server starts.
+* `SEPERATER`: The seperate character for commands.
+* `CHECK_MESSAGE_SEPERATE`: The server will check whether there are some messages should be passed from one user to another at a same rate. This value is the duration time for server checking new messages.
 * `TOKEN_LENGTH(level uint8) int` : Returns the number of bytes in the condition of `level`. The `level` decides how many bits will be used in AES.
 
 ### authenticate
 `authenticate` : The file `authenticate.go` is in folder `authenticate`, used to encipher/decipher, encode/decode, etc.
 * `Base64Encode(plaintext []byte) []byte` : receive the `plaintext` and return it with base64 encoded.
 * `Base64Decode(ciphertext []byte) ([]byte, error)` : receive the `ciphertext` encoded by base64, return its plain text and `nil`. If `ciphertext` cannot be decoded by base64, `error` will not be `nil`.
-* `TokenEncode(plaintext []byte, token string) []byte` : Use `token` to encipher `plaintext`, this method is not implemented yet.
-* `TokenDecode(ciphertext []byte, token string) ([]byte, error)` : Use `token` to decipher `ciphertext`, this method is not implemented yet.
+* ~~`TokenEncode(plaintext []byte, token string) []byte` : Use `token` to encipher `plaintext`, this method is not implemented yet.~~
+* ~~`TokenDecode(ciphertext []byte, token string) ([]byte, error)` : Use `token` to decipher `ciphertext`, this method is not implemented yet.~~
 * `NewAesBlock(key []byte) cipher.Block` : The `cipher.Block` is imported from `crypto/cipher`, this method will return a `cipher.Block` built by `key`.
 * `AesEncode(plaintext []byte, block cipher.Block) []byte` : This method use `block` to encipher `plaintext`, the enciphering method is CFB. It will return the bytes after enciphered.
 * `AesDecode(ciphertext []byte, plainLen int64, block cipher.Block) ([]byte, error)` : This method use `block` to decipher `ciphertext`. To decipher, the block needs the length of the original plain text, which is the `plainLen`. If deciphering is successful, it will return the palin text and `nil`. Otherwise, `error` will not be `nil`.
@@ -78,17 +92,17 @@ You can create a `cuser` struct by factory method `NewCUser(username string, cur
 * `GetUsername() string` : return the username.
 * `GetId() int64` : return user's id.
 * `GetWorkList() []transmit.Transmitable` : return active transmitters currently, not include the main listener.
-* `GetFilelist() []UFile` : return the files this user owns.
-* `GetAbsPath() string` : return the current absolutely path this user in.
+* ~~`GetFilelist() []UFile` : return the files this user owns.~~
+* ~~`GetAbsPath() string` : return the current absolutely path this user in.~~
 * `GetToken() string` : return the token used by this user, this method is not recommended, it will be removed in the future versions.
-* `GoToUpper()` : change the user's current path.
-* `GoToPath(path string) bool` : return `true` if the user change the current path to `path` successfully.
-* `SetPath(path string) bool` : just set the user's current path as `path` without check, always return true.
+* ~~`GoToUpper()` : change the user's current path.~~
+* ~~`GoToPath(path string) bool` : return `true` if the user change the current path to `path` successfully.~~
+* ~~`SetPath(path string) bool` : just set the user's current path as `path` without check, always return true.~~
 * `SetToken(string) bool` : set the token this user use, this method is not recommended, it will be removed in the future versions.
 * `SetListener(transmit.Transmitable) bool` :  set the main listener for this user, the main listener is the listener only used for transmitting messages and commands.
-* `Verify(pass string) bool` : check whether  `pass` is this user's password, it will be removed in future versions.
-* `AddUFile(UFile) bool` : add a `UFile` value to this user's filelist.
-* `RemoveUFile(UFile) bool` : remove a `UFile` value from this user's filelist.
+* ~~`Verify(pass string) bool` : check whether  `pass` is this user's password, it will be removed in future versions.~~
+* ~~`AddUFile(UFile) bool` : add a `UFile` value to this user's filelist.~~
+* ~~`RemoveUFile(UFile) bool` : remove a `UFile` value from this user's filelist.~~
 * `AddTransmit(transmit.Transmitable) bool` : add a transmitter to this user's worklist, return `true` if succeed since it can be at most `config.MAXTRANSMITTER` transmitters at one time.
 * `RemoveTransmit(transmit.Transmitable) bool` : remove a transmitter from the user's worklist.
 * `DealWithRequests()` : the method for this user to listen and accept requests/commands. Rewrite this method to implement your own logical actions.
@@ -148,6 +162,7 @@ type transmitter struct {
 * `RecvUntil(until int64, init int64, <-chan time.Time) (int64, error)` : the current number of bytes received is `init`, and this method will receive until the number arrive `until`. `chan` is a channel for controlling transmitting speed. The method will return the number of bytes at last, if failed, return error too. The buffer used in this method is the buffer in `transmitter` struct.
 * `Destroy()` : destroy this transmitter.
 * `GetConn() net.Conn` : return the socket of this transmitter.
+* `SetBuf(int64) bool`: set a new bufsize for this transmitter.
 * `GetBuf() []byte` : return the buffer of this transmitter.
 * `GetBuflen() int64` : return the buffer length of this transmitter.
 * `GetBlock() cipher.Block` : return the cipher block of this transmitter.
@@ -162,6 +177,7 @@ type Server struct {
 }
 ```
 * `InitDB() bool` : initial the database for the server.
+* `CheckBroadCast()`: the background function for sending messages between users.
 * `AddUser(u cstruct.User)` : add a user to the online list.
 * `RemoveUser(u cstruct.User) bool` : remove user `u` from the online list, return `true` if succeed.
 * `Login(t transmit.Transmitable) (cstruct.User, int)` : login a user from the transmitter `t`.
@@ -181,6 +197,7 @@ type Client struct {
 * `NewClient(level int) *Client` : returns a new `Client`, level assigns the safety level.
 * `Connect(ip string, port int) bool` : let your client connects `ip:port`, if succeed, it will return `true.
 * `Authenticate(username string, passwd string) bool` : authenticate the client. If succeed, it will return `true`.
+* `ThreadConnect(ip string, port int) trans.Transmitable`: return a new transmitter for this client, used for file transmission.
 
 ## TODO
 * ~~Authorisation check~~
@@ -189,12 +206,12 @@ type Client struct {
  * ~~File list items~~
  * ~~Create~~
  * ~~Upload/Download~~
- * Delete/Move/Copy
+ * ~~Delete/Move/Copy~~
  * Edit online
  * Share link
 * Fork
 * ~~Protocal~~
- * Instructions
+ * ~~Instructions~~
  * ~~Head length~~
  * ~~Authorisation~~
 * Project
@@ -209,6 +226,7 @@ type Client struct {
 * 2016-11-1: Add document for part of the current version.
 * 2016-11-2: Add document for current version.
 * 2016-11-9: Migrate the data source from memory to database, fix errors in `transmit`, add two logic actions in `DealWithRequests()`. The basic frame is  already built. To make a simple complete cloud storage server, the only thing need to be done is finish `DealWithRequests()`. Some problems left: the struct is not wrapped well, the inner implement is opened to users. Part of the `server` and `cstruct` should be reconstructed  after the demo finished.
+* 2016-11-12: Fix many errors found in `transmit` again. Finish basic commands for `cuser`, including `touch`, `cp`, `mv`, `fork`, `rm` and `send`, which used for sending messages to other users. The client can download files from server now. There are many small changes in  `client`, `server`. I also seperate some functions from the file `cuser.go`. After finishing all the logical operations, the struction should be reconstructed to make `user` and `server` independant.
 
 # License
 All codes in this repository are licensed under the terms you may find in the file named "LICENSE" in this directory.
