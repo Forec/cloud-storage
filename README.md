@@ -2,7 +2,9 @@
 
 > A simple package written in Golang 1.7.3 for building cloud storage server or client, also a task for my 2016 course design. you can use the code under limit of the license in this repository.
 
-与项目同步更新的中文指南发布在我的博客 [专栏](http://blog.forec.cn/columns/index.html) 《云存储系统从入门到放弃》中。此 README 将在项目完成后统一更新，项目完成前 README 中的内容可能与项目不统一。
+[**查看中文版项目介绍**](https://blog.forec.cn/2016/11/12/cloud-storage-system/)  
+
+与项目同步更新的中文指南发布在我的博客 [**专栏**](http://blog.forec.cn/columns/cloud-storage.html) **《云存储系统从入门到放弃》**中。此 README 将在项目完成后统一更新，项目完成前 README 中的内容可能与项目不统一。
 
 ## Theory
 ### File Store
