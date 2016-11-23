@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/11/23
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -44,9 +44,9 @@ const TEST_USERNAME = "forec"
 
 const TEST_PASSWORD = "TESTTHISPASSWORD"
 
-const TEST_SAFELEVEL = 1
+const TEST_SAFELEVEL = 3
 
-const TEST_IP = "127.0.0.1"
+const TEST_IP = "10.201.14.162" //"127.0.0.1"
 
 const TEST_PORT = 10087
 

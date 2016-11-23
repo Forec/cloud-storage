@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/11/23
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -141,6 +141,7 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	var err error
 	recvL, err = t.RecvUntil(int64(24), recvL, chRate)
 	if err != nil {
+		fmt.Println("1 error:", err.Error())
 		return nil, -1
 	}
 	srcLength := auth.BytesToInt64(t.GetBuf()[:8])
@@ -148,18 +149,24 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	nmLength := auth.BytesToInt64(t.GetBuf()[16:24])
 	recvL, err = t.RecvUntil(encLength, recvL, chRate)
 	if err != nil {
+		fmt.Println("2 error:", err.Error())
 		return nil, -1
 	}
 	var nameApass []byte
 	nameApass, err = auth.AesDecode(t.GetBuf()[24:24+encLength], srcLength, t.GetBlock())
 	if err != nil {
+		fmt.Println("decode error:", err.Error())
 		return nil, -1
 	}
+	fmt.Println(string(nameApass[:nmLength]), string(nameApass[nmLength:]))
 
 	pc := cs.UserIndexByName(s.loginUserList, string(nameApass[:nmLength]))
 	// 该连接由已登陆用户建立
 	if pc != nil {
+		fmt.Println("userfined, ", pc.GetUsername())
+		fmt.Println("pc token is ", pc.GetToken())
 		if pc.GetToken() != string(nameApass[nmLength:]) {
+			fmt.Println("token verify error! not valid!")
 			return nil, -1
 		} else {
 			// background message receiver
@@ -182,6 +189,7 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	var susername string
 	var spassword string
 	var screated string
+
 	err = row.Scan(&uid, &susername, &spassword, &screated)
 	if err != nil || spassword != string(nameApass[nmLength:]) {
 		return nil, -1
@@ -198,6 +206,7 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 	var err error
 	s_token := auth.GenerateToken(level)
 	length, err := conn.Write([]byte(s_token))
+	fmt.Println("send toekn", string(s_token))
 	if length != conf.TOKEN_LENGTH(level) ||
 		err != nil {
 		return
@@ -219,6 +228,9 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 		s.RemoveUser(rc)
 	} else if mode == 1 && mainT.SetBuflen(conf.BUFLEN) && rc.AddTransmit(mainT) {
 		rc.DealWithTransmission(s.db, mainT)
+	} else if mode != 2 {
+		mainT.Destroy()
+		fmt.Println("Remote client not valid")
 	}
 }
 

@@ -229,6 +229,7 @@ type Client struct {
 * 2016-11-2: Add document for current version.
 * 2016-11-9: Migrate the data source from memory to database, fix errors in `transmit`, add two logic actions in `DealWithRequests()`. The basic frame is  already built. To make a simple complete cloud storage server, the only thing need to be done is finish `DealWithRequests()`. Some problems left: the struct is not wrapped well, the inner implement is opened to users. Part of the `server` and `cstruct` should be reconstructed  after the demo finished.
 * 2016-11-12: Fix many errors found in `transmit` again. Finish basic commands for `cuser`, including `touch`, `cp`, `mv`, `fork`, `rm` and `send`, which used for sending messages to other users. The client can download files from server now. There are many small changes in  `client`, `server`. I also seperate some functions from the file `cuser.go`. After finishing all the logical operations, the struction should be reconstructed to make `user` and `server` independant.
+* 2016-11-23: Now the server and client can contact and use basic commands. The basic functions including transmission for client will be finished before December.
 
 # License
 All codes in this repository are licensed under the terms you may find in the file named "LICENSE" in this directory.

@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/11/23
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -152,15 +152,18 @@ func (c *Client) Connect(ip string, port int) bool {
 	}
 	c.remote = trans.NewTransmitter(conn, conf.AUTHEN_BUFSIZE, buf[:conf.TOKEN_LENGTH(c.level)])
 	copy(c.token, buf[:conf.TOKEN_LENGTH(c.level)])
+	fmt.Println("token", string(c.token))
 	c.ip = ip
 	c.port = port
 	return true
 }
 
 func (c *Client) Authenticate(username string, passwd string) bool {
-	encoded := auth.AesEncode([]byte(username+passwd), c.remote.GetBlock())
+	md5Ps := string(auth.MD5(passwd))
+	fmt.Println("send ,", username+md5Ps)
+	encoded := auth.AesEncode([]byte(username+md5Ps), c.remote.GetBlock())
 	buf := make([]byte, 24+len(encoded))
-	copy(buf, auth.Int64ToBytes(int64(len(username+passwd))))
+	copy(buf, auth.Int64ToBytes(int64(len(username+md5Ps))))
 	copy(buf[8:], auth.Int64ToBytes(int64(len(encoded))))
 	copy(buf[16:], auth.Int64ToBytes(int64(len(username))))
 	copy(buf[24:], encoded)
@@ -214,7 +217,7 @@ func (c *Client) Run() {
 }
 
 func main() {
-	c := NewClient(1)
+	c := NewClient(conf.TEST_SAFELEVEL)
 	if !c.Connect(conf.TEST_IP, conf.TEST_PORT) {
 		fmt.Println("CONNECTION WRONG")
 	} else {
