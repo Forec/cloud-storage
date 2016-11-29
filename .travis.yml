@@ -5,6 +5,7 @@ go_import_path: .
 install:
  - go get github.com/mattn/go-sqlite3
 script:
+ - mv ../cloud-storage ../Cloud
  - go run ./cloud/cloud.go &
  - go test -v ./authenticate
  - go test -v ./cstruct
