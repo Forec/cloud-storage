@@ -21,10 +21,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package server
 
 import (
-	auth "Cloud/authenticate"
-	conf "Cloud/config"
-	cs "Cloud/cstruct"
-	trans "Cloud/transmit"
+	auth "cloud-storage/authenticate"
+	conf "cloud-storage/config"
+	cs "cloud-storage/cstruct"
+	trans "cloud-storage/transmit"
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"

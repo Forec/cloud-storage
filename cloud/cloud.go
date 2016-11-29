@@ -21,9 +21,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package main
 
 import (
-	conf "Cloud/config"
-	cloud "Cloud/server"
 	"bufio"
+	conf "cloud-storage/config"
+	cloud "cloud-storage/server"
 	"fmt"
 	"os"
 )

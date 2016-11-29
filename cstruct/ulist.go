@@ -21,8 +21,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package cstruct
 
 import (
-	conf "Cloud/config"
-	trans "Cloud/transmit"
+	conf "cloud-storage/config"
+	trans "cloud-storage/transmit"
 )
 
 func AppendUser(slice []User, data ...User) []User {

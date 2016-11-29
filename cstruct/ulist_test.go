@@ -21,7 +21,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package cstruct
 
 import (
-	trans "Cloud/transmit"
+	trans "cloud-storage/transmit"
 	"testing"
 )
 

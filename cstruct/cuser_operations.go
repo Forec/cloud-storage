@@ -21,8 +21,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package cstruct
 
 import (
-	auth "Cloud/authenticate"
-	conf "Cloud/config"
+	auth "cloud-storage/authenticate"
+	conf "cloud-storage/config"
 	"database/sql"
 	"fmt"
 	"strconv"

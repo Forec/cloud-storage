@@ -21,10 +21,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package main
 
 import (
-	auth "Cloud/authenticate"
-	conf "Cloud/config"
-	trans "Cloud/transmit"
 	"bufio"
+	auth "cloud-storage/authenticate"
+	conf "cloud-storage/config"
+	trans "cloud-storage/transmit"
 	"fmt"
 	"net"
 	"os"
