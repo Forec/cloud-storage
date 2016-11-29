@@ -30,8 +30,8 @@ import (
 )
 
 const BUFSIZE int64 = 4096 * 1024
-const test_in_filename string = "test_in.exe"
-const test_out_filename string = "test_out.exe"
+const test_in_filename string = "test_in.txt"
+const test_out_filename string = "test_out.txt"
 
 func client_test(t *testing.T) {
 	time.Sleep(time.Second)

@@ -1,0 +1,10 @@
+language: go
+go:
+ - 1.7.3
+install:
+ - go get github.com/mattn/go-sqlite3
+script:
+ - go run ./cloud/cloud.go &
+ - go test -v ./authenticate
+ - go test -v ./cstruct
+ - go test -v ./transmit
