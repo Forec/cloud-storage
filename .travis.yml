@@ -1,7 +1,7 @@
 language: go
 go:
  - 1.7.3
-go_import_path: GOPATH/src
+go_import_path: .
 install:
  - go get github.com/mattn/go-sqlite3
 script:

@@ -1,6 +1,6 @@
 # Cloud Storage（云存储）
 
-[![Build Status](https://travis-ci.org/Forec/cloud-storage)](https://travis-ci.org/Forec/cloud-storage) 
+[![Build Status](https://travis-ci.org/Forec/cloud-storage.png)](https://travis-ci.org/Forec/cloud-storage) 
 
 > A simple package written in Golang 1.7.3 for building cloud storage server or client, also a task for my 2016 course design. you can use the code under limit of the license in this repository.
 
