@@ -7,5 +7,3 @@ install:
 script:
  - go run ./cloud/cloud.go &
  - go test -v ./authenticate
- - go test -v ./cstruct
- - go test -v ./transmit
