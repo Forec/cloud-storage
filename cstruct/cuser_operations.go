@@ -721,12 +721,12 @@ func (u *cuser) cp(db *sql.DB, command string) {
 			parentPath+originName+"/", u.id)
 		fmt.Println(queryString)
 		queryRows, err = db.Query(queryString)
-		defer queryRows.Close()
 		if err != nil {
 			fmt.Println("3:", err.Error())
 			valid = false
 			goto CP_VERIFY
 		}
+		defer queryRows.Close()
 		recordList = make([]id_path, 0, recordCount)
 		// get all records belong to the dir
 		for queryRows.Next() {
@@ -1022,6 +1022,7 @@ func (u *cuser) ls(db *sql.DB, command string) {
 	ufilelist, err = db.Query(queryString)
 
 	if err != nil {
+		fmt.Println("1:", err.Error())
 		valid = false
 		goto LS_VERIFY
 	}
@@ -1030,20 +1031,24 @@ func (u *cuser) ls(db *sql.DB, command string) {
 		err = ufilelist.Scan(&uid, &ownerid, &cfileid, &path, &perlink, &created, &shared, &downloaded,
 			&filename, &private, &linkpass, &isdir)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("2:", err.Error())
 			valid = false
 			break
 		}
 		if cfileid >= 0 {
 			tcfile := db.QueryRow(fmt.Sprintf("SELECT * FROM cfile where uid='%d'", cfileid))
 			if tcfile == nil {
-				valid = false
-				break
+				fmt.Println("3: tcfile is nil")
+				continue
+				//valid = false
+				//break
 			}
 			err = tcfile.Scan(&cuid, &cmd5, &csize, &cref, &ccreated)
 			if err != nil {
-				valid = false
-				break
+				fmt.Println("4:", err.Error())
+				//valid = false
+				//break
+				continue
 			}
 		} else {
 			csize = 0

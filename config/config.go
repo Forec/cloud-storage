@@ -46,7 +46,7 @@ const TEST_PASSWORD = "TESTTHISPASSWORD"
 
 const TEST_SAFELEVEL = 3
 
-const TEST_IP = "10.201.14.162" //"127.0.0.1"
+const TEST_IP = "127.0.0.1"
 
 const TEST_PORT = 10087
 

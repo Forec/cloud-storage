@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/23
+last edit date: 2016/12/3
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -29,6 +29,7 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -191,7 +192,7 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	var screated string
 
 	err = row.Scan(&uid, &susername, &spassword, &screated)
-	if err != nil || spassword != string(nameApass[nmLength:]) {
+	if err != nil || spassword != strings.ToUpper(string(nameApass[nmLength:])) {
 		return nil, -1
 	}
 	rc := cs.NewCUser(string(nameApass[:nmLength]), int64(uid), "/")
@@ -199,6 +200,32 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		return nil, -1
 	}
 	rc.SetListener(t)
+	rows, err := s.db.Query(fmt.Sprintf("SELECT cfileid FROM ufile where ownerid=%d", uid))
+	if err != nil {
+		return nil, -1
+	}
+	defer rows.Close()
+	var cid, size int
+	var totalSize int64 = 0
+	for rows.Next() {
+		err = rows.Scan(&cid)
+		if err != nil {
+			return nil, -1
+		}
+		if cid < 0 {
+			continue
+		}
+		row = s.db.QueryRow(fmt.Sprintf("select size from cfile where uid=%d", cid))
+		if row == nil {
+			return nil, -1
+		}
+		err = row.Scan(&size)
+		if err != nil {
+			return nil, -1
+		}
+		totalSize += int64(size)
+	}
+	rc.SetUsed(int64(totalSize))
 	return rc, 0
 }
 

@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/23
+last edit date: 2016/12/3
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -322,9 +323,93 @@ func (c *Client) getFile(input string) {
 }
 
 func (c *Client) putFile(input string) {
-
+	// user format : put+uid+filename
+	// send format : put+uid+size+md5
+	args := generateArgs(input, 3)
+	var uid int
+	var size int64
+	var err error
+	var filepath string
+	if args == nil || strings.ToUpper(args[0]) != "PUT" {
+		fmt.Println("your input is not valid")
+		return
+	}
+	if uid, err = strconv.Atoi(args[1]); err != nil {
+		fmt.Println("your input arg uid is not valid")
+		return
+	}
+	if c.info == nil {
+		fmt.Println("Network is unstable now.")
+		return
+	}
+	filepath = fmt.Sprintf("%s%s", conf.DOWNLOAD_PATH, args[2])
+	if size, err = trans.GetFileSize(filepath); err != nil {
+		fmt.Println("cannot calculate filesize")
+		return
+	}
+	file, err := os.Open(filepath)
+	if err != nil {
+		fmt.Println("Cannot open target file")
+		return
+	}
+	fileReader := bufio.NewReader(file)
+	md5 := auth.CalcMD5ForReader(fileReader)
+	defer file.Close()
+	if md5 == nil {
+		fmt.Println("cannot calculate md5")
+		return
+	}
+	putThread := c.ThreadConnect(c.ip, c.port)
+	if putThread == nil {
+		fmt.Println("Cannot build thread")
+		return
+	}
+	targetCommand := fmt.Sprintf("put%s%d%s%d%s%s", conf.SEPERATER,
+		uid, conf.SEPERATER, size, conf.SEPERATER, md5)
+	putThread.SendBytes([]byte(targetCommand))
+	recv, err := putThread.RecvBytes()
+	if err != nil || len(recv) != 8 {
+		fmt.Println("connection lost1")
+		return
+	}
+	returnCode := auth.BytesToInt64(recv[:8])
+	if returnCode == 201 {
+		fmt.Println("starts transmission")
+		_, err = file.Seek(0, 0)
+		if err != nil {
+			return
+		}
+		fileReader = bufio.NewReader(file)
+		putThread.SendFromReader(fileReader, size)
+	} else if returnCode != 200 {
+		fmt.Println("failed, code :", returnCode)
+		return
+	}
+	if returnCode == 200 {
+		fmt.Println("succeed")
+	}
+	c.RemoveWork(putThread)
 }
 
 func (c *Client) updateFile(input string) {
 
+}
+
+func generateArgs(command string, arglen int) []string {
+	args := strings.Split(command, conf.SEPERATER)
+	if arglen > 0 && len(args) != arglen {
+		return nil
+	}
+	for i, arg := range args {
+		args[i] = strings.Trim(arg, " ")
+		args[i] = strings.Replace(args[i], "\r", "", -1)
+		args[i] = strings.Replace(args[i], "\n", "", -1)
+		if args[i] == "" {
+			fmt.Println("got invalid arg")
+			return nil
+		}
+		fmt.Printf("%s ", args[i])
+	}
+	fmt.Println()
+	return args
 }

@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/12/3
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -42,6 +42,7 @@ import (
 
 type cuser struct {
 	id       int64
+	used     int64
 	listen   trans.Transmitable
 	infos    trans.Transmitable
 	username string
@@ -70,6 +71,7 @@ type User interface {
 	GoToUpper()
 	GoToPath(string) bool
 	SetPath(string) bool
+	SetUsed(int64) bool
 	SetToken(string) bool
 	SetListener(trans.Transmitable) bool
 	SetInfos(trans.Transmitable) bool
@@ -121,6 +123,11 @@ func (u *cuser) SetPath(path string) bool {
 
 func (u *cuser) SetInfos(t trans.Transmitable) bool {
 	u.infos = t
+	return true
+}
+
+func (u *cuser) SetUsed(size int64) bool {
+	u.used = size
 	return true
 }
 

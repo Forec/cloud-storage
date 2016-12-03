@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/12/3
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -21,6 +21,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package authenticate
 
 import (
+	"bufio"
+	conf "cloud-storage/config"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
@@ -28,6 +30,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -106,6 +109,18 @@ func MD5(text string) []byte {
 	return []byte(hex.EncodeToString(ctx.Sum(nil)))
 }
 
+func IsMD5(text string) bool {
+	if len(text) != 32 {
+		return false
+	}
+	for _, char := range strings.ToUpper(text) {
+		if char < '0' || char > '9' && char < 'A' || char > 'F' {
+			return false
+		}
+	}
+	return true
+}
+
 func GenerateToken(level uint8) []byte {
 	if level <= 1 { // 128 bits, 16 bits token
 		return MD5(GetRandomString(128))[:16]
@@ -114,4 +129,31 @@ func GenerateToken(level uint8) []byte {
 	} else { // 256 bits, 32 bits token
 		return MD5(GetRandomString(128))[:32]
 	}
+}
+
+func CalcMD5ForReader(reader *bufio.Reader) []byte {
+	if reader == nil {
+		return nil
+	}
+	var length int
+	var err error
+	var currentLengthForBuf int = 0
+	var buf []byte = make([]byte, 0, 2*conf.BUFLEN)
+	midtermBuf := ""
+	for {
+		length, err = reader.Read(buf[currentLengthForBuf:])
+		if err != nil {
+			return nil
+		}
+		currentLengthForBuf += length
+		if currentLengthForBuf >= conf.BUFLEN {
+			midtermBuf += string(MD5(string(buf[:conf.BUFLEN])))
+			copy(buf, buf[conf.BUFLEN:currentLengthForBuf])
+		}
+		if length == 0 {
+			midtermBuf += string(MD5(string(buf[:currentLengthForBuf])))
+			return MD5(midtermBuf)
+		}
+	}
+	return nil
 }
