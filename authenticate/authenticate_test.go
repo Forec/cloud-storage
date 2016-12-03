@@ -20,7 +20,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 package authenticate
 
-import "testing"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"testing"
+)
 
 type testS struct {
 	in  string
@@ -105,4 +110,24 @@ func TestGenerateToken(t *testing.T) {
 		len(GenerateToken(100)) == 32) {
 		t.Errorf("Generate Token Error.")
 	}
+}
+
+func TestMD5Calculator(t *testing.T) {
+	file1, err := os.Open("G:\\Cloud\\haha.txt")
+	if err != nil {
+		fmt.Println("Cannot open target file haha.txt")
+		return
+	}
+	fileReader1 := bufio.NewReader(file1)
+	md51 := CalcMD5ForReader(fileReader1)
+	defer file1.Close()
+	file2, err := os.Open("G:\\Cloud\\3")
+	if err != nil {
+		fmt.Println("Cannot open target file 3")
+		return
+	}
+	fileReader2 := bufio.NewReader(file2)
+	md52 := CalcMD5ForReader(fileReader2)
+	defer file2.Close()
+	fmt.Println(string(md51), string(md52))
 }

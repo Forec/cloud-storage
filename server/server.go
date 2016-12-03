@@ -217,11 +217,11 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		}
 		row = s.db.QueryRow(fmt.Sprintf("select size from cfile where uid=%d", cid))
 		if row == nil {
-			return nil, -1
+			continue
 		}
 		err = row.Scan(&size)
 		if err != nil {
-			return nil, -1
+			continue
 		}
 		totalSize += int64(size)
 	}

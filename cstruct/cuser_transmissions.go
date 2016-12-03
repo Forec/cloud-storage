@@ -66,7 +66,7 @@ func (u *cuser) get(db *sql.DB, command string, t trans.Transmitable) {
 	var err error
 	var isdir, private bool
 	var uid, valid int = 0, 0
-	var recordCount, ownerid, cfileid, parentLength int
+	var recordCount, ownerid, cfileid, parentLength, downloaded int
 	var pass, filename, originFilename, path, subpath string
 	var queryRow *sql.Row
 	var queryRows *sql.Rows
@@ -81,13 +81,13 @@ func (u *cuser) get(db *sql.DB, command string, t trans.Transmitable) {
 		valid = 1 // command not valid
 		goto GET_VERIFY
 	}
-	queryRow = db.QueryRow(fmt.Sprintf(`select isdir, private, ownerid, linkpass, cfileid, filename, path
-		from ufile where uid=%d`, uid))
+	queryRow = db.QueryRow(fmt.Sprintf(`select isdir, private, ownerid, linkpass, cfileid, filename, path, 
+		downloaded from ufile where uid=%d`, uid))
 	if queryRow == nil {
 		valid = 2 // no such record
 		goto GET_VERIFY
 	}
-	queryRow.Scan(&isdir, &private, &ownerid, &pass, &cfileid, &filename, &path)
+	queryRow.Scan(&isdir, &private, &ownerid, &pass, &cfileid, &filename, &path, &downloaded)
 	if int64(ownerid) != u.id && private && pass != args[2] {
 		valid = 3 // no permission
 		goto GET_VERIFY
@@ -100,6 +100,7 @@ GET_VERIFY:
 	} else {
 		t.SendBytes([]byte("VALID"))
 	}
+	db.Exec(fmt.Sprintf(`update ufile set downloaded=%d where uid=%d`, downloaded+1, uid))
 	var totalFileLength int = 0
 	if !isdir {
 		// only a single file, send 1 indicate
@@ -272,7 +273,7 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 	* start transmitting or end connection
 	 */
 	var err1, err2, err error
-	var uid, _cid, cid, size, ref int
+	var uid, _cid, cid, size, _ref, ref int
 	var shouldTransmit, valid bool = true, true
 	var queryRow *sql.Row
 	args := generateArgs(command, 4)
@@ -293,17 +294,15 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 				shouldTransmit = true
 			} else {
 				err = queryRow.Scan(&cid, &ref)
-				if err != nil {
-					t.SendBytes(auth.Int64ToBytes(500))
-					fmt.Println("server internal error: cannot scan cid and ref")
-					return
-				} else {
+				if err == nil {
 					shouldTransmit = false
+				} else {
+					fmt.Println("scan cid,ref err:", err.Error())
 				}
 			}
 		}
 	}
-
+	fmt.Println(shouldTransmit)
 	if valid != true {
 		t.SendBytes(auth.Int64ToBytes(300))
 		fmt.Println("command not valid")
@@ -315,14 +314,13 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 		if err != nil {
 			fmt.Println("Cannot Open File ", conf.STORE_PATH+args[3])
 			t.SendBytes(auth.Int64ToBytes(500))
-			fmt.Println("server internal error: cannot create openfile")
+			fmt.Println("server internal error: cannot create openfile, ", err.Error())
 			return
 		}
 
 		// transmitting files
 		fileWriter := bufio.NewWriter(file)
 		if t.RecvToWriter(fileWriter) {
-			//			t.SendBytes(auth.Int64ToBytes(202))
 			fmt.Println("file has been transmitted over")
 		} else {
 			t.SendBytes(auth.Int64ToBytes(203))
@@ -330,10 +328,10 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 			return
 		}
 		_, err = db.Exec(fmt.Sprintf(`insert into cfile values(null, '%s', %d, 0, '%s')`,
-			args[3], size, time.Now().Format("2006-01-02 15:04:05")))
+			strings.ToUpper(args[3]), size, time.Now().Format("2006-01-02 15:04:05")))
 		if err != nil {
 			t.SendBytes(auth.Int64ToBytes(500))
-			fmt.Println("server internal error: cannot insert cfile record")
+			fmt.Println("server internal error: cannot insert cfile record", err.Error())
 			return
 		}
 		queryRow = db.QueryRow(`select max(uid) from cfile`)
@@ -345,37 +343,37 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 			err = queryRow.Scan(&cid)
 			if err != nil {
 				t.SendBytes(auth.Int64ToBytes(500))
-				fmt.Println("server internal error: cannot scan max cfiles' uid")
+				fmt.Println("server internal error: cannot scan max cfiles' uid", err.Error())
 				return
 			}
 		}
+		file.Close()
 		err = os.Rename(conf.STORE_PATH+args[3], fmt.Sprintf("%s%d", conf.STORE_PATH, cid))
-		if err == nil {
+		if err != nil {
 			t.SendBytes(auth.Int64ToBytes(500))
-			fmt.Println("server internal error: cannot rename file to cid")
+			fmt.Println("server internal error: cannot rename file to cid", err.Error())
 			return
 		}
-		file.Close()
 		file, err = os.Open(fmt.Sprintf("%s%d", conf.STORE_PATH, cid))
 		if err != nil {
 			t.SendBytes(auth.Int64ToBytes(500))
-			fmt.Println("calcMD5 : Cannot open target file")
+			fmt.Println("calcMD5 : Cannot open target file", err.Error())
 			return
 		}
 		fileReader := bufio.NewReader(file)
 		_md5 := auth.CalcMD5ForReader(fileReader)
+		file.Close()
 		if _md5 == nil {
 			t.SendBytes(auth.Int64ToBytes(500))
 			fmt.Println("_md5 is nil!")
 			return
 		}
-		md5 := []byte(args[3])
-		for i, md5Item := range _md5 {
-			if md5[i] != md5Item {
-				t.SendBytes(auth.Int64ToBytes(403))
-				fmt.Println("Your origin md5 is not valid!")
-				return
-			}
+		if strings.ToUpper(string(args[3])) != strings.ToUpper(string(_md5)) {
+			t.SendBytes(auth.Int64ToBytes(403))
+			fmt.Println("Your origin md5 is not valid!")
+			db.Exec(fmt.Sprintf("delete from cfile where uid=%d", cid))
+			os.Remove(fmt.Sprintf("%s%s", conf.STORE_PATH, cid))
+			return
 		}
 		ref = 0
 	}
@@ -390,7 +388,7 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 		err = queryRow.Scan(&_cid)
 		if err != nil {
 			t.SendBytes(auth.Int64ToBytes(500))
-			fmt.Println("server internal error: cannot scan _cid")
+			fmt.Println("server internal error: cannot scan _cid", err.Error())
 			return
 		}
 	}
@@ -399,20 +397,31 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 		fmt.Println("no need to transmit")
 		return
 	}
+	queryRow = db.QueryRow(fmt.Sprintf(`select ref from cfile where uid=%d`, _cid))
+	if queryRow != nil {
+		err = queryRow.Scan(&_ref)
+		if err == nil {
+			if _ref != 1 {
+				db.Exec(fmt.Sprintf(`update cfile set ref=%d where uid=%d`, _ref-1, _cid))
+			} else {
+				db.Exec(fmt.Sprintf(`delete from cfile where uid=%d`, _cid))
+			}
+		}
+	}
 	_, err = db.Exec(fmt.Sprintf(`update ufile set cfileid=%d where uid=%d and ownerid=%d`,
 		cid, uid, u.id))
 	fmt.Println(fmt.Sprintf(`update ufile set cfileid=%d where uid=%d and ownerid=%d`,
 		cid, uid, u.id))
 	if err != nil {
 		t.SendBytes(auth.Int64ToBytes(500))
-		fmt.Println("server internal error:cannot update ufile's cfileid")
+		fmt.Println("server internal error:cannot update ufile's cfileid", err.Error())
 		return
 	}
 	_, err = db.Exec(fmt.Sprintf(`update cfile set ref=%d where uid=%d`,
-		cid, ref+1))
+		ref+1, cid))
 	if err != nil {
 		t.SendBytes(auth.Int64ToBytes(500))
-		fmt.Println("server internal error:cannot update cfile's ref")
+		fmt.Println("server internal error:cannot update cfile's ref", err.Error())
 	} else {
 		t.SendBytes(auth.Int64ToBytes(200))
 		fmt.Println("all put mission has been done")

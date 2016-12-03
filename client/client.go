@@ -381,6 +381,13 @@ func (c *Client) putFile(input string) {
 		}
 		fileReader = bufio.NewReader(file)
 		putThread.SendFromReader(fileReader, size)
+
+		recv, err = putThread.RecvBytes()
+		if err != nil || len(recv) != 8 {
+			fmt.Println("connection lost1")
+			return
+		}
+		returnCode = auth.BytesToInt64(recv[:8])
 	} else if returnCode != 200 {
 		fmt.Println("failed, code :", returnCode)
 		return

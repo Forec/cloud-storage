@@ -135,24 +135,28 @@ func CalcMD5ForReader(reader *bufio.Reader) []byte {
 	if reader == nil {
 		return nil
 	}
+	ctx := md5.New()
 	var length int
-	var err error
-	var currentLengthForBuf int = 0
-	var buf []byte = make([]byte, 0, 2*conf.BUFLEN)
-	midtermBuf := ""
+	buf := make([]byte, 0, conf.BUFLEN)
+	midtermBuf := make([]byte, 0, conf.BUFLEN)
+	midtermLen := 0
+	currentLengthForBuf := 0
 	for {
-		length, err = reader.Read(buf[currentLengthForBuf:])
-		if err != nil {
-			return nil
+		if currentLengthForBuf == conf.BUFLEN {
+			ctx.Write(buf)
+			copy(midtermBuf[midtermLen:midtermLen+32], ctx.Sum(nil))
+			midtermLen += 32
+			currentLengthForBuf = 0
+			ctx.Reset()
 		}
+		length, _ = reader.Read(buf[currentLengthForBuf:conf.BUFLEN])
 		currentLengthForBuf += length
-		if currentLengthForBuf >= conf.BUFLEN {
-			midtermBuf += string(MD5(string(buf[:conf.BUFLEN])))
-			copy(buf, buf[conf.BUFLEN:currentLengthForBuf])
-		}
 		if length == 0 {
-			midtermBuf += string(MD5(string(buf[:currentLengthForBuf])))
-			return MD5(midtermBuf)
+			ctx.Write(buf[:currentLengthForBuf])
+			copy(midtermBuf[midtermLen:conf.BUFLEN], ctx.Sum(nil))
+			ctx.Reset()
+			ctx.Write(midtermBuf[:midtermLen])
+			return []byte(hex.EncodeToString(ctx.Sum(nil)))
 		}
 	}
 	return nil
