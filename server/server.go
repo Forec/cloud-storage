@@ -55,6 +55,9 @@ func (s *Server) InitDB() bool {
 		md5 VARCHAR(32), size INTEGER, ref INTEGER, created DATE)`)
 	s.db.Exec(`create table cmessages (mesid INTEGER PRIMARY KEY AUTOINCREMENT,
 		targetid INTEGER, sendid INTEGER, message VARCHAR(512), created DATE)`)
+	s.db.Exec(`crete table coperations (oprid INTEGER PRIMARY KEY AUTOINCREMENT,
+		deletedUFileId INTEGER, deletedUFileName VARCHAR(128), 
+		deletedUFilePath VARCHAR(256), relatedCFileId INTEGER, time DATE)`)
 	return true
 }
 
