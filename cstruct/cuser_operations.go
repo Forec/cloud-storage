@@ -169,7 +169,7 @@ func (u *cuser) chmod(db *sql.DB, command string) {
 	var uidList []int
 
 	args := generateArgs(command, 3)
-	if args == nil {
+	if args == nil || strings.ToUpper(args[0]) != "CHMOD" {
 		valid = false
 		goto CHMOD_VERIFY
 	}
@@ -268,7 +268,7 @@ func (u *cuser) rm(db *sql.DB, command string) {
 	var err error
 
 	args := generateArgs(command, 2)
-	if args == nil || strings.ToUpper(args[0]) != "CHMOD" {
+	if args == nil || strings.ToUpper(args[0]) != "RM" {
 		valid = 0 // command not valid
 		goto RM_VERIFY
 	}
@@ -402,6 +402,7 @@ func (u *cuser) rm(db *sql.DB, command string) {
 RM_VERIFY:
 	if valid != -1 {
 		u.listen.SendBytes(auth.Int64ToBytes(int64(valid)))
+		fmt.Println("valid is ", valid)
 	} else {
 		u.listen.SendBytes(auth.Int64ToBytes(int64(200)))
 	}
