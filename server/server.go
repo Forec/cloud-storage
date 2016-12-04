@@ -46,16 +46,19 @@ func (s *Server) InitDB() bool {
 		return false
 	}
 	s.db.Exec(`create table cuser (uid INTEGER PRIMARY KEY AUTOINCREMENT,
-		username VARCHAR(64), password VARCHAR(128), created DATE)`)
+		email VARCHAR(64), password_hash VARCHAR(32), created DATE, confirmed BOOLEAN,
+		nickname VARCHAR(64), avatar_hash VARCHAR(32), about_me VARCHAR(256),
+		last_seen DATE, member_since DATE, score INTEGER, role_id INTEGER)`)
 	s.db.Exec(`create table ufile (uid INTEGER PRIMARY KEY AUTOINCREMENT, 
 		ownerid INTEGER, cfileid INTEGER, path VARCHAR(256), perlink VARCHAR(128), 
 		created DATE, shared INTEGER, downloaded INTEGER, filename VARCHAR(128),
-		private BOOLEAN, linkpass VARCHAR(4)), isdir BOOLEAN`)
+		private BOOLEAN, linkpass VARCHAR(4), isdir BOOLEAN, description VARCHAR(256))`)
 	s.db.Exec(`create table cfile (uid INTEGER PRIMARY KEY AUTOINCREMENT,
 		md5 VARCHAR(32), size INTEGER, ref INTEGER, created DATE)`)
 	s.db.Exec(`create table cmessages (mesid INTEGER PRIMARY KEY AUTOINCREMENT,
-		targetid INTEGER, sendid INTEGER, message VARCHAR(512), created DATE)`)
-	s.db.Exec(`crete table coperations (oprid INTEGER PRIMARY KEY AUTOINCREMENT,
+		targetid INTEGER, sendid INTEGER, message VARCHAR(512), created DATE, 
+		sended Boolean, viewed Boolean)`)
+	s.db.Exec(`create table coperations (oprid INTEGER PRIMARY KEY AUTOINCREMENT,
 		deletedUFileId INTEGER, deletedUFileName VARCHAR(128), 
 		deletedUFilePath VARCHAR(256), relatedCFileId INTEGER, time DATE)`)
 	return true
@@ -72,7 +75,7 @@ func (s *Server) CheckBroadCast() {
 		<-chRate
 		for _, u := range s.loginUserList {
 			queryRow = s.db.QueryRow(fmt.Sprintf(`select count (*) from cmessages where
-				targetid=%d`, u.GetId()))
+				targetid=%d and sended=0`, u.GetId()))
 			if queryRow == nil {
 				continue
 			}
@@ -82,7 +85,7 @@ func (s *Server) CheckBroadCast() {
 			}
 			id_list := make([]int, 0, messageCount)
 			queryRows, err = s.db.Query(fmt.Sprintf(`select mesid, sendid, message, created
-				 from cmessages where targetid=%d`, u.GetId()))
+				 from cmessages where targetid=%d and sended=0`, u.GetId()))
 			if err != nil {
 				fmt.Println("query error: ", err.Error())
 				continue
@@ -101,9 +104,9 @@ func (s *Server) CheckBroadCast() {
 				}
 			}
 			for _, id := range id_list {
-				_, err = s.db.Exec(fmt.Sprintf(`delete from cmessages where mesid=%d`, id))
+				_, err = s.db.Exec(fmt.Sprintf(`update cmessages set sended=1 where mesid=%d`, id))
 				if err != nil {
-					fmt.Println("delete error: ", err.Error())
+					fmt.Println("update error: ", err.Error())
 					continue
 				}
 			}
@@ -185,17 +188,17 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	}
 	// 该连接来自新用户
 	username := string(nameApass[:nmLength])
-	row := s.db.QueryRow(fmt.Sprintf("SELECT * FROM cuser where username='%s'", username))
+	row := s.db.QueryRow(fmt.Sprintf("SELECT uid, password_hash FROM cuser where email='%s'", username))
 	if row == nil {
+		fmt.Println("err1:", err.Error())
 		return nil, -1
 	}
 	var uid int
-	var susername string
 	var spassword string
-	var screated string
 
-	err = row.Scan(&uid, &susername, &spassword, &screated)
+	err = row.Scan(&uid, &spassword)
 	if err != nil || spassword != strings.ToUpper(string(nameApass[nmLength:])) {
+		fmt.Println("err2:", err.Error())
 		return nil, -1
 	}
 	rc := cs.NewCUser(string(nameApass[:nmLength]), int64(uid), "/")
@@ -205,6 +208,7 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	rc.SetListener(t)
 	rows, err := s.db.Query(fmt.Sprintf("SELECT cfileid FROM ufile where ownerid=%d", uid))
 	if err != nil {
+		fmt.Println("err3:", err.Error())
 		return nil, -1
 	}
 	defer rows.Close()
@@ -213,6 +217,7 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	for rows.Next() {
 		err = rows.Scan(&cid)
 		if err != nil {
+			fmt.Println("err4:", err.Error())
 			return nil, -1
 		}
 		if cid < 0 {
@@ -224,6 +229,8 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		}
 		err = row.Scan(&size)
 		if err != nil {
+
+			fmt.Println("err5:", err.Error())
 			continue
 		}
 		totalSize += int64(size)
@@ -243,6 +250,7 @@ func (s *Server) Communicate(conn net.Conn, level uint8) {
 	}
 	mainT := trans.NewTransmitter(conn, conf.AUTHEN_BUFSIZE, s_token)
 	rc, mode := s.Login(mainT)
+	fmt.Println("mode: ", mode)
 	if rc == nil || mode == -1 {
 		mainT.Destroy()
 		return

@@ -6,4 +6,3 @@ install:
  - go get github.com/mattn/go-sqlite3
 script:
  - go run ./cloud/cloud.go &
- - go test -v ./authenticate

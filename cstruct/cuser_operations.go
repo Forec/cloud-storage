@@ -45,10 +45,10 @@ type path_name struct {
 }
 
 type ufile_record struct {
-	uid                                        int
-	ownerid, cfileid, shared, downloaded       int
-	private, isdir                             bool
-	linkpass, path, created, filename, perlink string
+	uid                                                     int
+	ownerid, cfileid, shared, downloaded                    int
+	private, isdir                                          bool
+	linkpass, path, created, filename, perlink, description string
 }
 
 func (u *cuser) DealWithRequests(db *sql.DB) {
@@ -285,7 +285,7 @@ func (u *cuser) rm(db *sql.DB, command string) {
 	}
 	err = queryRow.Scan(&record.uid, &record.ownerid, &record.cfileid, &record.path,
 		&record.perlink, &record.created, &record.shared, &record.downloaded, &record.filename,
-		&record.private, &record.linkpass, &record.isdir)
+		&record.private, &record.linkpass, &record.isdir, &record.description)
 	fmt.Println("record.ownerid: ", record.ownerid, "  uid: ", uid)
 	if err != nil || int64(record.ownerid) != u.id {
 		valid = 2 // the record format not valid or the user is invalid
@@ -444,7 +444,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 	}
 	err = queryRow.Scan(&record.uid, &record.ownerid, &record.cfileid, &record.path,
 		&record.perlink, &record.created, &record.shared, &record.downloaded, &record.filename,
-		&record.private, &record.linkpass, &record.isdir)
+		&record.private, &record.linkpass, &record.isdir, &record.description)
 	if err != nil {
 		fmt.Println("format error:", err.Error())
 		valid = 2 // the record format is not valid
@@ -473,7 +473,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 		}
 		if recordCount <= 0 {
 			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s', '', '%s', 0, 0, 
-				'%s', 1, '', 1)`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
+				'%s', 1, '', 1, '')`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
 			if err != nil {
 				fmt.Println(err.Error())
 				valid = 4 //database write error
@@ -485,7 +485,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 	}
 	originPath = record.path
 	// insert new record
-	_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d)`,
+	_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 		u.id, record.cfileid, args[3], time.Now().Format("2006-01-02 15:04:05"), record.filename, isdir_int))
 	if err != nil {
 		fmt.Println("1:", err.Error())
@@ -551,7 +551,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 		for queryRows.Next() {
 			err = queryRow.Scan(&record.uid, &record.ownerid, &record.cfileid, &record.path,
 				&record.perlink, &record.created, &record.shared, &record.downloaded, &record.filename,
-				&record.private, &record.linkpass, &record.isdir)
+				&record.private, &record.linkpass, &record.isdir, &record.description)
 			if err != nil {
 				fmt.Println("4:", err.Error())
 				valid = 2 // record format not valid
@@ -566,7 +566,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 			} else {
 				isdir_int = 0
 			}
-			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d)`,
+			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 				u.id, record.cfileid, args[2]+record.path[len(originPath):], time.Now().Format("2006-01-02 15:04:05"), record.filename, isdir_int))
 			if err != nil {
 				fmt.Println("6:", err.Error())
@@ -614,7 +614,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 	var err error
 	var path, parentPath, originName, queryString string
 	var uownerid, cfileid, ushared, udownloaded int
-	var upath, uperlink, ufilename, ulinkpass, ucreated string
+	var upath, uperlink, ufilename, ulinkpass, ucreated, udescription string
 	var queryRow *sql.Row
 	var queryRows *sql.Rows
 	var recordList []id_path
@@ -638,7 +638,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 		goto CP_VERIFY
 	}
 	err = queryRow.Scan(&uid, &uownerid, &cfileid, &parentPath, &uperlink, &ucreated, &ushared, &udownloaded,
-		&originName, &uprivate, &ulinkpass, &isdir)
+		&originName, &uprivate, &ulinkpass, &isdir, &udescription)
 	if err != nil || int64(uownerid) != u.id {
 		valid = false
 		goto CP_VERIFY
@@ -661,7 +661,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 		}
 		if recordCount <= 0 {
 			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s', '', '%s', 0, 0, 
-				'%s', 1, '', 1)`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
+				'%s', 1, '', 1, '')`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
 			if err != nil {
 				fmt.Println(err.Error())
 				valid = false
@@ -695,7 +695,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 		}
 	}
 	// no matter the record is a file or folder, its filename and path should be copied
-	_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d)`,
+	_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 		u.id, cfileid, args[2], time.Now().Format("2006-01-02 15:04:05"), originName, isdir_int))
 	if err != nil {
 		fmt.Println("1:", err.Error())
@@ -749,7 +749,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 				goto CP_VERIFY
 			}
 			err = queryRow.Scan(&uid, &uownerid, &cfileid, &upath, &uperlink, &ucreated, &ushared, &udownloaded,
-				&ufilename, &uprivate, &ulinkpass, &isdir)
+				&ufilename, &uprivate, &ulinkpass, &isdir, &udescription)
 			if err != nil {
 				fmt.Println("5:", err.Error())
 				valid = false
@@ -760,7 +760,7 @@ func (u *cuser) cp(db *sql.DB, command string) {
 			} else {
 				isdir_int = 0
 			}
-			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d)`,
+			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, %d, '%s', '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 				u.id, cfileid, args[2]+record.u_path[len(parentPath):], time.Now().Format("2006-01-02 15:04:05"), ufilename, isdir_int))
 			if err != nil {
 				fmt.Println("6:", err.Error())
@@ -849,7 +849,7 @@ func (u *cuser) mv(db *sql.DB, command string) {
 		}
 		if recordCount <= 0 {
 			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s', '', '%s', 0, 0, 
-				'%s', 1, '', 1)`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
+				'%s', 1, '', 1, '')`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
 			if err != nil {
 				fmt.Println(err.Error())
 				valid = false
@@ -957,7 +957,7 @@ func (u *cuser) touch(db *sql.DB, command string) {
 		}
 		if recordCount <= 0 {
 			_, err = db.Exec(fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s', '', '%s', 0, 0, 
-				'%s', 1, '', 1)`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
+				'%s', 1, '', 1, '')`, u.id, subpath.u_path, time.Now().Format("2006-01-02 15:04:05"), subpath.u_name))
 			if err != nil {
 				fmt.Println(err.Error())
 				valid = false //database write error
@@ -966,7 +966,7 @@ func (u *cuser) touch(db *sql.DB, command string) {
 	}
 
 	execString = fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s',
-	 '', '%s', 0, 0, '%s', 1, '', %d)`,
+	 '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 		u.id, args[2], time.Now().Format("2006-01-02 15:04:05"), args[1], isdir)
 	fmt.Println(execString)
 	_, err = db.Exec(execString)
@@ -1012,12 +1012,13 @@ func (u *cuser) ls(db *sql.DB, command string) {
 	}
 	u.curpath = args[2]
 	if recurssive == 0 {
-		queryString = fmt.Sprintf("select * from ufile where ownerid=%d and path='%s' and filename like '%s'",
+		queryString = fmt.Sprintf(`select uid, ownerid, cfileid, path, perlink, created, shared, downloaded, filename, 
+		 private, linkpass, isdir from ufile where ownerid=%d and path='%s' and filename like '%s'`,
 			u.id, u.curpath, argAll)
 	} else {
-		queryString = fmt.Sprintf("select * from ufile where ownerid=%d and path like '%s%%' and filename like '%s'",
+		queryString = fmt.Sprintf(`select uid, ownerid, cfileid, path, perlink, created, shared, downloaded, filename, 
+		 private, linkpass, isdir from ufile where ownerid=%d and path like '%s%%' and filename like '%s'`,
 			u.id, u.curpath, argAll)
-
 	}
 	fmt.Println(queryString)
 	ufilelist, err = db.Query(queryString)
@@ -1037,7 +1038,8 @@ func (u *cuser) ls(db *sql.DB, command string) {
 			break
 		}
 		if cfileid >= 0 {
-			tcfile := db.QueryRow(fmt.Sprintf("SELECT * FROM cfile where uid='%d'", cfileid))
+			tcfile := db.QueryRow(fmt.Sprintf("SELECT uid, md5, size, ref, created FROM cfile where uid='%d'",
+				cfileid))
 			if tcfile == nil {
 				fmt.Println("3: tcfile is nil")
 				continue

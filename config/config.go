@@ -36,11 +36,11 @@ const MAXTRANSMITTER = 20
 
 const DATABASE_TYPE = "sqlite3"
 
-const DATABASE_PATH = "work.db"
+const DATABASE_PATH = "F:\\Develop\\Python\\cloud-storage\\work.db"
 
 const START_USER_LIST = 10
 
-const TEST_USERNAME = "forec"
+const TEST_USERNAME = "forec@bupt.edu.cn"
 
 const TEST_PASSWORD = "TESTTHISPASSWORD"
 
