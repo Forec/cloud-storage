@@ -143,9 +143,8 @@ func CalcMD5ForReader(reader *bufio.Reader) []byte {
 	currentLengthForBuf := 0
 	for {
 		if currentLengthForBuf == conf.BUFLEN {
-			ctx.Write(buf)
-			copy(midtermBuf[midtermLen:midtermLen+32],
-				[]byte(hex.EncodeToString(ctx.Sum(nil))))
+			ctx.Write(buf[:conf.BUFLEN])
+			copy(midtermBuf[midtermLen:midtermLen+32], []byte(hex.EncodeToString(ctx.Sum(nil))[:32]))
 			midtermLen += 32
 			currentLengthForBuf = 0
 			ctx.Reset()
@@ -154,10 +153,11 @@ func CalcMD5ForReader(reader *bufio.Reader) []byte {
 		currentLengthForBuf += length
 		if length == 0 {
 			ctx.Write(buf[:currentLengthForBuf])
-			copy(midtermBuf[midtermLen:conf.BUFLEN], ctx.Sum(nil))
+			copy(midtermBuf[midtermLen:midtermLen+32], []byte(hex.EncodeToString(ctx.Sum(nil))[:32]))
 			ctx.Reset()
+			midtermLen += 32
 			ctx.Write(midtermBuf[:midtermLen])
-			return []byte(hex.EncodeToString(ctx.Sum(nil)))
+			return []byte(strings.ToUpper(hex.EncodeToString(ctx.Sum(nil))))
 		}
 	}
 	return nil

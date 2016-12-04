@@ -1,8 +1,8 @@
 # Cloud Storage（云存储）
 
-[![License](http://7xktmz.com1.z0.glb.clouddn.com/license-icon.svg)](https://github.com/Forec/cloud-storage/blob/master/LICENSE) 
+[![License](http://7xktmz.com1.z0.glb.clouddn.com/license-UDL.svg)](https://github.com/Forec/cloud-storage/blob/master/LICENSE) 
 [![Build Status](https://travis-ci.org/Forec/cloud-storage.png)](https://travis-ci.org/Forec/cloud-storage) 
-[![Doc](http://7xktmz.com1.z0.glb.clouddn.com/docs-icon.svg)](https://github.com/Forec/cloud-storage)
+[![Doc](http://7xktmz.com1.z0.glb.clouddn.com/docs-icon.svg)](http://blog.forec.cn/columns/cloud-storage.html)
 
 > A simple package written in Golang 1.7.3 for building cloud storage server or client, also a task for my 2016 course design. you can use the code under limit of the license in this repository.
 

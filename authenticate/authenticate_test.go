@@ -21,6 +21,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 package authenticate
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"testing"
 )
 
@@ -107,4 +110,16 @@ func TestGenerateToken(t *testing.T) {
 		len(GenerateToken(100)) == 32) {
 		t.Errorf("Generate Token Error.")
 	}
+}
+
+func TestMD5File(t *testing.T) {
+	file, err := os.Open("G:\\Cloud\\haha.txt")
+	if err != nil {
+		fmt.Println("Cannot open target file")
+		return
+	}
+	defer file.Close()
+	fileReader := bufio.NewReader(file)
+	md5 := CalcMD5ForReader(fileReader)
+	fmt.Println(string(md5))
 }
