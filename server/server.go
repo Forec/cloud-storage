@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/12/3
+last edit date: 2016/12/7
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -48,7 +48,8 @@ func (s *Server) InitDB() bool {
 	s.db.Exec(`create table cuser (uid INTEGER PRIMARY KEY AUTOINCREMENT,
 		email VARCHAR(64), password_hash VARCHAR(32), created DATE, confirmed BOOLEAN,
 		nickname VARCHAR(64), avatar_hash VARCHAR(32), about_me VARCHAR(256),
-		last_seen DATE, member_since DATE, score INTEGER, role_id INTEGER)`)
+		last_seen DATE, member_since DATE, score INTEGER, role_id INTEGER,
+		used INTEGER, maxm INTEGER)`)
 	s.db.Exec(`create table ufile (uid INTEGER PRIMARY KEY AUTOINCREMENT, 
 		ownerid INTEGER, cfileid INTEGER, path VARCHAR(256), perlink VARCHAR(128), 
 		created DATE, shared INTEGER, downloaded INTEGER, filename VARCHAR(128),
@@ -206,36 +207,20 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		return nil, -1
 	}
 	rc.SetListener(t)
-	rows, err := s.db.Query(fmt.Sprintf("SELECT cfileid FROM ufile where ownerid=%d", uid))
+	row = s.db.QueryRow(fmt.Sprintf("SELECT used, maxm FROM cuser where uid=%d", uid))
 	if err != nil {
 		fmt.Println("err3:", err.Error())
 		return nil, -1
 	}
-	defer rows.Close()
-	var cid, size int
-	var totalSize int64 = 0
-	for rows.Next() {
-		err = rows.Scan(&cid)
-		if err != nil {
-			fmt.Println("err4:", err.Error())
-			return nil, -1
-		}
-		if cid < 0 {
-			continue
-		}
-		row = s.db.QueryRow(fmt.Sprintf("select size from cfile where uid=%d", cid))
-		if row == nil {
-			continue
-		}
-		err = row.Scan(&size)
-		if err != nil {
-
-			fmt.Println("err5:", err.Error())
-			continue
-		}
-		totalSize += int64(size)
+	used := 0
+	maxm := 0
+	err = row.Scan(&used, &maxm)
+	if err != nil {
+		fmt.Println("err4:", err.Error())
+		return nil, -1
 	}
-	rc.SetUsed(int64(totalSize))
+	rc.SetUsed(int64(used))
+	rc.SetMaxm(int64(maxm))
 	return rc, 0
 }
 

@@ -43,6 +43,7 @@ import (
 type cuser struct {
 	id       int64
 	used     int64
+	maxm     int64
 	listen   trans.Transmitable
 	infos    trans.Transmitable
 	username string
@@ -70,8 +71,11 @@ type User interface {
 	GetInfos() trans.Transmitable
 	GoToUpper()
 	GoToPath(string) bool
+	GetUsed() int64
+	GetMaxm() int64
 	SetPath(string) bool
 	SetUsed(int64) bool
+	SetMaxm(int64) bool
 	SetToken(string) bool
 	SetListener(trans.Transmitable) bool
 	SetInfos(trans.Transmitable) bool
@@ -111,6 +115,14 @@ func (u *cuser) GetAbsPath() string {
 	return conf.USER_FOLDER + u.username + u.curpath
 }
 
+func (u *cuser) GetUsed() int64 {
+	return u.used
+}
+
+func (u *cuser) GetMaxm() int64 {
+	return u.maxm
+}
+
 func (u *cuser) SetListener(t trans.Transmitable) bool {
 	u.listen = t
 	return true
@@ -128,6 +140,11 @@ func (u *cuser) SetInfos(t trans.Transmitable) bool {
 
 func (u *cuser) SetUsed(size int64) bool {
 	u.used = size
+	return true
+}
+
+func (u *cuser) SetMaxm(size int64) bool {
+	u.maxm = size
 	return true
 }
 
