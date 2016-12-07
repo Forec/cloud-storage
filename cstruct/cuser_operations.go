@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/11/13
+last edit date: 2016/12/7
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -143,7 +143,7 @@ func (u *cuser) send(db *sql.DB, command string) {
 	for i := 2; i < len(args); i++ {
 		message += (args[i] + " ")
 	}
-	_, err = db.Exec(fmt.Sprintf(`insert into cmessages values(null, %d, %d, '%s', '%s')`,
+	_, err = db.Exec(fmt.Sprintf(`insert into cmessages values(null, %d, %d, '%s', '%s', 0, 0)`,
 		uid, u.id, message, time.Now().Format("2006-01-02 15:04:05")))
 	if err != nil {
 		fmt.Println(err.Error())

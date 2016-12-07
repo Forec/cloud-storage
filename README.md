@@ -235,6 +235,7 @@ type Client struct {
 * 2016-11-12: Fix many errors found in `transmit` again. Finish basic commands for `cuser`, including `touch`, `cp`, `mv`, `fork`, `rm` and `send`, which used for sending messages to other users. The client can download files from server now. There are many small changes in  `client`, `server`. I also seperate some functions from the file `cuser.go`. After finishing all the logical operations, the struction should be reconstructed to make `user` and `server` independant.
 * 2016-11-23: Now the server and client can contact and use basic commands. The basic functions including transmission for client will be finished before December.
 * 2016-12-3: Finish put method. Besides, fix many small errors. Now the test client has implement all the basic methods passing test.
+* 2016-12-7: Fix the database, add used and maxm for user model. add recv_delete and send_delete for message model.
 
 # License
 All codes in this repository are licensed under the terms you may find in the file named "LICENSE" in this directory.

@@ -58,7 +58,7 @@ func (s *Server) InitDB() bool {
 		md5 VARCHAR(32), size INTEGER, ref INTEGER, created DATE)`)
 	s.db.Exec(`create table cmessages (mesid INTEGER PRIMARY KEY AUTOINCREMENT,
 		targetid INTEGER, sendid INTEGER, message VARCHAR(512), created DATE, 
-		sended Boolean, viewed Boolean)`)
+		sended Boolean, viewed Boolean, send_delete Boolean, recv_delete Boolean)`)
 	s.db.Exec(`create table coperations (oprid INTEGER PRIMARY KEY AUTOINCREMENT,
 		deletedUFileId INTEGER, deletedUFileName VARCHAR(128), 
 		deletedUFilePath VARCHAR(256), relatedCFileId INTEGER, time DATE)`)
@@ -86,7 +86,7 @@ func (s *Server) CheckBroadCast() {
 			}
 			id_list := make([]int, 0, messageCount)
 			queryRows, err = s.db.Query(fmt.Sprintf(`select mesid, sendid, message, created
-				 from cmessages where targetid=%d and sended=0`, u.GetId()))
+				 from cmessages where targetid=%d and sended=0 and recv_delete=0`, u.GetId()))
 			if err != nil {
 				fmt.Println("query error: ", err.Error())
 				continue
