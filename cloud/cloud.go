@@ -24,16 +24,23 @@ import (
 	"bufio"
 	conf "cloud-storage/config"
 	cloud "cloud-storage/server"
+	"flag"
 	"fmt"
 	"os"
 )
 
+var address_h = flag.String("h", conf.TEST_IP,
+	"Bind server with assigned IP address, default "+conf.TEST_IP)
+var port_p = flag.Int("p", conf.TEST_PORT,
+	fmt.Sprintf("Bind server with assigned port, default %d", conf.TEST_PORT))
+
 func main() {
 	s := new(cloud.Server)
+	flag.Parse()
 	if !s.InitDB() {
 		fmt.Println("db ERROR")
 	} else {
-		go s.Run(conf.TEST_IP, conf.TEST_PORT, conf.TEST_SAFELEVEL)
+		go s.Run(*address_h, *port_p, conf.TEST_SAFELEVEL)
 		go s.CheckBroadCast()
 	}
 	inputReader := bufio.NewReader(os.Stdin)

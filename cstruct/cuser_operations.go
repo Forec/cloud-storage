@@ -143,7 +143,7 @@ func (u *cuser) send(db *sql.DB, command string) {
 	for i := 2; i < len(args); i++ {
 		message += (args[i] + " ")
 	}
-	_, err = db.Exec(fmt.Sprintf(`insert into cmessages values(null, %d, %d, '%s', '%s', 0, 0)`,
+	_, err = db.Exec(fmt.Sprintf(`insert into cmessages values(null, %d, %d, '%s', '%s', 0, 0,0, 0)`,
 		uid, u.id, message, time.Now().Format("2006-01-02 15:04:05")))
 	if err != nil {
 		fmt.Println(err.Error())
@@ -266,7 +266,7 @@ func (u *cuser) rm(db *sql.DB, command string) {
 	var crecords []int
 	var valid int = -1
 	var err error
-
+	var tempSize int = 0
 	args := generateArgs(command, 2)
 	if args == nil || strings.ToUpper(args[0]) != "RM" {
 		valid = 0 // command not valid
@@ -302,18 +302,19 @@ func (u *cuser) rm(db *sql.DB, command string) {
 	}
 	if !record.isdir { // the record is a file
 		if record.cfileid >= 0 {
-			queryRow = db.QueryRow(fmt.Sprintf(`select ref from cfile where uid=%d`, record.cfileid))
+			queryRow = db.QueryRow(fmt.Sprintf(`select ref, size from cfile where uid=%d`, record.cfileid))
 			if queryRow == nil {
 				valid = 1 // the record not exists
 				fmt.Println("cannot find reference cfile")
 				goto RM_VERIFY
 			}
-			err = queryRow.Scan(&ref)
+			err = queryRow.Scan(&ref, &tempSize)
 			if err != nil {
 				fmt.Println("format error: ", err.Error())
 				valid = 2 // the record format is not valid
 				goto RM_VERIFY
 			}
+			u.used -= int64(tempSize)
 			if ref == 1 { // the cfile is not referred any more
 				_, err = db.Exec(fmt.Sprintf(`delete from cfile where uid=%d`,
 					record.cfileid))
@@ -370,17 +371,18 @@ func (u *cuser) rm(db *sql.DB, command string) {
 			goto RM_VERIFY
 		}
 		for _, cid := range crecords {
-			queryRow = db.QueryRow(fmt.Sprintf(`select ref from cfile where uid=%d`, cid))
+			queryRow = db.QueryRow(fmt.Sprintf(`select ref, size from cfile where uid=%d`, cid))
 			if queryRow == nil {
 				// the record not exists
 				continue
 			}
-			err = queryRow.Scan(&ref)
+			err = queryRow.Scan(&ref, &tempSize)
 			if err != nil {
 				fmt.Println("foramt error :", err.Error())
 				valid = 2 // record format invalid
 				goto RM_VERIFY
 			}
+			u.used -= int64(tempSize)
 			if ref == 1 { // the cfile is not referred any more
 				_, err = db.Exec(fmt.Sprintf(`delete from cfile where uid=%d`,
 					cid))
@@ -418,6 +420,7 @@ func (u *cuser) fork(db *sql.DB, command string) {
 	var subpaths []path_name
 	var queryRow *sql.Row
 	var queryRows *sql.Rows
+	var tempSize int = 0
 
 	// record items declaration
 	var record ufile_record
@@ -501,18 +504,19 @@ func (u *cuser) fork(db *sql.DB, command string) {
 	}
 	// update the cfile reference if the record is not a folder
 	if !record.isdir && record.cfileid >= 0 {
-		queryRow = db.QueryRow(fmt.Sprintf(`select ref from cfile where uid=%d`, record.cfileid))
+		queryRow = db.QueryRow(fmt.Sprintf(`select ref, size from cfile where uid=%d`, record.cfileid))
 		if queryRow == nil {
 			fmt.Println("cfile record not exists")
 			valid = 1 // record not exists
 			goto FORK_VERIFY
 		}
-		err = queryRow.Scan(&ref)
+		err = queryRow.Scan(&ref, &tempSize)
 		if err != nil {
 			fmt.Println("cfile record format error: ", err.Error())
 			valid = 2 // record format not valid
 			goto FORK_VERIFY
 		}
+		u.used += int64(tempSize)
 		_, err = db.Exec(fmt.Sprintf(`update cfile set ref=%d where uid=%d`, ref+1, record.cfileid))
 		if err != nil {
 			fmt.Println("update cfile error", err.Error())
@@ -581,16 +585,17 @@ func (u *cuser) fork(db *sql.DB, command string) {
 			}
 			// update the cfile reference, if the ufile record is not a folder and its cfileid >= 0
 			if record.cfileid >= 0 && !record.isdir {
-				queryRow = db.QueryRow(fmt.Sprintf(`select ref from cfile where uid=%d`, record.cfileid))
+				queryRow = db.QueryRow(fmt.Sprintf(`select ref, size from cfile where uid=%d`, record.cfileid))
 				if queryRow == nil {
 					valid = 1 // record not exists
 					goto FORK_VERIFY
 				}
-				err = queryRow.Scan(&ref)
+				err = queryRow.Scan(&ref, &tempSize)
 				if err != nil {
 					valid = 2 // record format not valid
 					goto FORK_VERIFY
 				}
+				u.used += int64(tempSize)
 				_, err = db.Exec(fmt.Sprintf(`update cfile set ref=%d where uid=%d`, ref+1, record.cfileid))
 				if err != nil {
 					valid = 4 // database write error
@@ -923,7 +928,7 @@ func (u *cuser) touch(db *sql.DB, command string) {
 	var execString string
 	var subpaths []path_name
 	var queryRow *sql.Row
-	var isdir, recordCount int
+	var isdir, recordCount, uid int
 	var err error
 	args := generateArgs(command, 4)
 	if args == nil {
@@ -968,17 +973,36 @@ func (u *cuser) touch(db *sql.DB, command string) {
 	execString = fmt.Sprintf(`insert into ufile values(null, %d, -1, '%s',
 	 '', '%s', 0, 0, '%s', 1, '', %d, '')`,
 		u.id, args[2], time.Now().Format("2006-01-02 15:04:05"), args[1], isdir)
-	fmt.Println(execString)
+	fmt.Println("touch string:", execString)
 	_, err = db.Exec(execString)
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("touch err:", err.Error())
+		valid = false
+	}
+	queryRow = db.QueryRow(fmt.Sprintf(`select uid from ufile where path='%s' and filename='%s'`,
+		args[2], args[1]))
+	if queryRow == nil {
+		fmt.Println("return uid faild")
+		valid = false
+	}
+	err = queryRow.Scan(&uid)
+	if err != nil {
+		fmt.Println("fuck touch error:", err.Error())
 		valid = false
 	}
 TOUCH_VERIFY:
 	if !valid {
-		u.listen.SendBytes(auth.Int64ToBytes(int64(400)))
+		fmt.Println("fuck failed")
+		codeBytes := auth.Int64ToBytes(int64(400))
+		uidBytes := auth.Int64ToBytes(int64(0))
+		codeBytes = append(codeBytes, uidBytes...)
+		u.listen.SendBytes(codeBytes)
 	} else {
-		u.listen.SendBytes(auth.Int64ToBytes(int64(200)))
+		fmt.Println("uid:", uid)
+		codeBytes := auth.Int64ToBytes(int64(200))
+		uidBytes := auth.Int64ToBytes(int64(uid))
+		codeBytes = append(codeBytes, uidBytes...)
+		u.listen.SendBytes(codeBytes)
 	}
 }
 

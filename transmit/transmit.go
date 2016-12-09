@@ -248,7 +248,11 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 	for {
 		if recvLength == int64(totalLength) {
 			t.recvLen = pRecv
-			writer.Flush()
+			err = writer.Flush()
+			if err != nil {
+				fmt.Println("flush error:", err.Error())
+				return false
+			}
 			fmt.Println("File Transimission Complete.")
 			return true
 		}
@@ -270,6 +274,7 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 			return false
 		}
 		outputLength, outputError := writer.Write(receive)
+		fmt.Println(receive)
 		if outputError != nil || outputLength != int(plength) {
 			fmt.Println("ERROR: File Write Error.")
 			return false

@@ -369,6 +369,7 @@ func (u *cuser) put(db *sql.DB, command string, t trans.Transmitable) {
 			return
 		}
 		if strings.ToUpper(string(args[3])) != strings.ToUpper(string(_md5)) {
+			fmt.Println(strings.ToUpper(string(args[3])), strings.ToUpper(string(_md5)))
 			t.SendBytes(auth.Int64ToBytes(403))
 			fmt.Println("Your origin md5 is not valid!")
 			db.Exec(fmt.Sprintf("delete from cfile where uid=%d", cid))
