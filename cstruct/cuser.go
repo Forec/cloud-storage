@@ -1,6 +1,6 @@
 /*
 author: Forec
-last edit date: 2016/12/3
+last edit date: 2016/12/9
 email: forec@bupt.edu.cn
 LICENSE
 Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
@@ -41,16 +41,18 @@ import (
  */
 
 type cuser struct {
-	id       int64
-	used     int64
-	maxm     int64
-	listen   trans.Transmitable
-	infos    trans.Transmitable
-	username string
-	token    string
-	curpath  string
-	worklist []trans.Transmitable
-	filelist []UFile
+	id        int64
+	used      int64
+	maxm      int64
+	listen    trans.Transmitable
+	infos     trans.Transmitable
+	username  string
+	nickname  string
+	token     string
+	curpath   string
+	pass_hash string
+	worklist  []trans.Transmitable
+	filelist  []UFile
 }
 
 /* CUSER METHODS
@@ -73,6 +75,10 @@ type User interface {
 	GoToPath(string) bool
 	GetUsed() int64
 	GetMaxm() int64
+	GetNickname() string
+	GetPassHash() string
+	SetPassHash(string) bool
+	SetNickname(string) bool
 	SetPath(string) bool
 	SetUsed(int64) bool
 	SetMaxm(int64) bool
@@ -121,6 +127,24 @@ func (u *cuser) GetUsed() int64 {
 
 func (u *cuser) GetMaxm() int64 {
 	return u.maxm
+}
+
+func (u *cuser) GetNickname() string {
+	return u.nickname
+}
+
+func (u *cuser) GetPassHash() string {
+	return u.pass_hash
+}
+
+func (u *cuser) SetPassHash(_passhash string) bool {
+	u.pass_hash = _passhash
+	return true
+}
+
+func (u *cuser) SetNickname(_nickname string) bool {
+	u.nickname = _nickname
+	return true
 }
 
 func (u *cuser) SetListener(t trans.Transmitable) bool {
@@ -253,6 +277,9 @@ func (u *cuser) Logout() {
 			ut.Destroy()
 		}
 	}
+	u.worklist = nil
+	u.infos = nil
+	u.listen = nil
 	fmt.Println(u.username + " logged out")
 	//u.worklist = nil
 	//u.token = ""

@@ -48,6 +48,7 @@ func (u *cuser) DealWithTransmission(db *sql.DB, t trans.Transmitable) {
 		return
 	}
 	command := string(recvB)
+	fmt.Println("command:", command)
 	fmt.Println(command)
 	switch {
 	case len(command) >= 3 && strings.ToUpper(command[:3]) == "GET":
@@ -138,8 +139,9 @@ GET_VERIFY:
 	} else {
 		// a folder
 		// calculate how many records should be sent
-		queryRow = db.QueryRow(fmt.Sprintf(`select count (*) from ufile where path like '%s%%'`,
-			path+filename+"/"))
+		queryRow = db.QueryRow(fmt.Sprintf(`select count (*) from ufile where 
+			path like '%s%%' and ownerid=%d`,
+			path+filename+"/", u.id))
 		originFilename = filename
 		//	defer queryRows.Close()
 		if queryRow == nil {

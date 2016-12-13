@@ -42,6 +42,7 @@ func main() {
 	} else {
 		go s.Run(*address_h, *port_p, conf.TEST_SAFELEVEL)
 		go s.CheckBroadCast()
+		go s.CheckLive()
 	}
 	inputReader := bufio.NewReader(os.Stdin)
 	for {

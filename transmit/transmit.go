@@ -193,7 +193,6 @@ func (t *transmitter) RecvBytes() ([]byte, error) {
 		return nil, err
 	}
 	totalLength := auth.BytesToInt64(t.buf[:8])
-	//percent := 0
 	var toRecvLength int64 = totalLength
 	var plength int64 = 0
 	var elength int64 = 0
@@ -239,7 +238,6 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 		return false
 	}
 	totalLength := auth.BytesToInt64(t.buf[:8])
-	//percent := 0
 	var recvLength int64 = 0
 	var plength int64 = 0
 	var elength int64 = 0
@@ -274,7 +272,6 @@ func (t *transmitter) RecvToWriter(writer *bufio.Writer) bool {
 			return false
 		}
 		outputLength, outputError := writer.Write(receive)
-		fmt.Println(receive)
 		if outputError != nil || outputLength != int(plength) {
 			fmt.Println("ERROR: File Write Error.")
 			return false

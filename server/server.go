@@ -65,6 +65,20 @@ func (s *Server) InitDB() bool {
 	return true
 }
 
+func (s *Server) CheckLive() {
+	chRate := time.Tick(conf.CHECK_LIVE_SEPERATE * time.Second)
+	for {
+		<-chRate
+		for _, u := range s.loginUserList {
+			go func(usr cs.User) {
+				if !s.BroadCast(usr, conf.CHECK_LIVE_TAG) {
+					usr.Logout()
+				}
+			}(u)
+		}
+	}
+}
+
 func (s *Server) CheckBroadCast() {
 	chRate := time.Tick(conf.CHECK_MESSAGE_SEPERATE * time.Second)
 	var queryRows *sql.Rows
@@ -168,11 +182,19 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 	}
 	fmt.Println(string(nameApass[:nmLength]), string(nameApass[nmLength:]))
 
+	username := string(nameApass[:nmLength])
 	pc := cs.UserIndexByName(s.loginUserList, string(nameApass[:nmLength]))
+
 	// 该连接由已登陆用户建立
 	if pc != nil {
 		fmt.Println("userfined, ", pc.GetUsername())
 		fmt.Println("pc token is ", pc.GetToken())
+		if string(nameApass[nmLength:]) == pc.GetPassHash() {
+			s.BroadCast(pc, "您的账号在另一台机器上登录，如果不是您本人所为，请尽快修改密码！")
+			pc.Logout()
+			pc.SetListener(t)
+			return pc, 0
+		}
 		if pc.GetToken() != string(nameApass[nmLength:]) {
 			fmt.Println("token verify error! not valid!")
 			return nil, -1
@@ -188,7 +210,6 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		}
 	}
 	// 该连接来自新用户
-	username := string(nameApass[:nmLength])
 	row := s.db.QueryRow(fmt.Sprintf("SELECT uid, password_hash FROM cuser where email='%s'", username))
 	if row == nil {
 		fmt.Println("err1:", err.Error())
@@ -199,7 +220,9 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 
 	err = row.Scan(&uid, &spassword)
 	if err != nil || spassword != strings.ToUpper(string(nameApass[nmLength:])) {
-		fmt.Println("err2:", err.Error())
+		if err != nil {
+			fmt.Println("err2:", err.Error())
+		}
 		return nil, -1
 	}
 	rc := cs.NewCUser(string(nameApass[:nmLength]), int64(uid), "/")
@@ -207,20 +230,24 @@ func (s *Server) Login(t trans.Transmitable) (cs.User, int) {
 		return nil, -1
 	}
 	rc.SetListener(t)
-	row = s.db.QueryRow(fmt.Sprintf("SELECT used, maxm FROM cuser where uid=%d", uid))
+	row = s.db.QueryRow(fmt.Sprintf("SELECT used, maxm, nickname FROM cuser where uid=%d", uid))
 	if err != nil {
 		fmt.Println("err3:", err.Error())
 		return nil, -1
 	}
 	used := 0
 	maxm := 0
-	err = row.Scan(&used, &maxm)
+	nickname := ""
+	err = row.Scan(&used, &maxm, &nickname)
 	if err != nil {
 		fmt.Println("err4:", err.Error())
 		return nil, -1
 	}
+
+	rc.SetPassHash(spassword)
 	rc.SetUsed(int64(used))
 	rc.SetMaxm(int64(maxm))
+	rc.SetNickname(nickname)
 	return rc, 0
 }
 

@@ -52,6 +52,10 @@ const TEST_PORT = 10087
 
 const SEPERATER = "+"
 
+const CHECK_LIVE_SEPERATE = 5
+
+const CHECK_LIVE_TAG = "[check]"
+
 const CHECK_MESSAGE_SEPERATE = 5
 
 func TOKEN_LENGTH(level uint8) int {
