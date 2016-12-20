@@ -1,21 +1,8 @@
 /*
-author: Forec
-last edit date: 2016/11/23
-email: forec@bupt.edu.cn
-LICENSE
-Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
-
-Permission to use, copy, modify, and/or distribute this code for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+作者: Forec
+最后编辑日期: 2016/12/20
+邮箱：forec@bupt.edu.cn
+关于此文件：云服务器的程序执行入口
 */
 
 package main
@@ -29,28 +16,35 @@ import (
 	"os"
 )
 
+// 开放服务器的 IP 地址
 var address_h = flag.String("h", conf.TEST_IP,
-	"Bind server with assigned IP address, default "+conf.TEST_IP)
+	"将服务器绑定到指定IP，默认为 "+conf.TEST_IP)
+
+// 开放服务器的端口号
 var port_p = flag.Int("p", conf.TEST_PORT,
-	fmt.Sprintf("Bind server with assigned port, default %d", conf.TEST_PORT))
+	fmt.Sprintf("将服务器绑定到指定端口，默认为 %d", conf.TEST_PORT))
 
 func main() {
 	s := new(cloud.Server)
-	flag.Parse()
-	if !s.InitDB() {
+	flag.Parse()     // 解析参数
+	if !s.InitDB() { // 初始化数据库
 		fmt.Println("db ERROR")
 	} else {
+		// 启动服务器
 		go s.Run(*address_h, *port_p, conf.TEST_SAFELEVEL)
+		// 启动服务器消息转发协程
 		go s.CheckBroadCast()
+		// 启动保活协程
 		go s.CheckLive()
 	}
 	inputReader := bufio.NewReader(os.Stdin)
 	for {
 		input, err := inputReader.ReadString('\n')
 		if err != nil {
-			fmt.Println("ERROR: Failed to get your command.\n")
+			fmt.Println("无法获取输入\n")
 			continue
 		}
+		// 将服务器的输入广播给全部用户
 		s.BroadCastToAll(input)
 	}
 }

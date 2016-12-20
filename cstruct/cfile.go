@@ -1,21 +1,8 @@
 /*
-author: Forec
-last edit date: 2016/11/13
-email: forec@bupt.edu.cn
-LICENSE
-Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
-
-Permission to use, copy, modify, and/or distribute this code for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+作者: Forec
+最后编辑日期: 2016/12/20
+邮箱：forec@bupt.edu.cn
+关于此文件：CFILE 结构的定义与基本方法实现
 */
 
 package cstruct
@@ -26,44 +13,30 @@ import (
 	"time"
 )
 
-/* CFILE DECLARATION
- * id         : primary key for cfile
- * ref        : the number of users forking this cfile
- * size       : file size
- * downloaded : the number of times this cfile has been downloaded
- * timestamp  : cfile created time
- * userlist   : list of users forking this cfile
- */
-
+// -----------------------------------------------------------------------------
+// CFILE 结构
 type cfile struct {
-	id         int64
-	ref        int32
-	size       int64
-	downloaded int64
-	timestamp  time.Time
-	userlist   []*cuser
+	id         int64     // 文件实体编号
+	ref        int32     // 文件实体引用次数
+	size       int64     // 文件实体大小
+	downloaded int64     // 文件实体下载次数
+	timestamp  time.Time // 文件实体创建时间
+	userlist   []*cuser  // 引用此文件实体的用户列表
 }
 
+// CFILE 类型接口
 type CFile interface {
 	GetId() int64
 	GetTimestamp() time.Time
 	GetSize() int64
 	GetRef() int32
-	SetId(int64) bool
-	SetSize(int64) bool
-	AddRef(int32) bool
+	SetId(int64) bool   // 设置文件实体编号
+	SetSize(int64) bool // 设置文件实体大小
+	AddRef(int32) bool  // 增加引用数
 }
 
-/* CFILE METHODS
- * CONSTRUCTOR: NewCFile(fid 	int64,
-						fname 	string,
-						fpath 	string,
-						fsize 	int64) 	*cfile
-
- * MODIFIER: Set[VALUE] (v VALUE_TYPE) 	bool
-			 AddUser	(u *cuser) 	   	bool
-*/
-
+// -----------------------------------------------------------------------------
+// CFILE 工厂方法
 func NewCFile(fid int64, fsize int64) *cfile {
 	f := new(cfile)
 	f.ref = 0
@@ -74,6 +47,8 @@ func NewCFile(fid int64, fsize int64) *cfile {
 	return f
 }
 
+// -----------------------------------------------------------------------------
+// CFILE 元素相关方法
 func (f *cfile) GetId() int64 {
 	return f.id
 }
@@ -105,6 +80,8 @@ func (f *cfile) AddRef(offset int32) bool {
 	return true
 }
 
+// -----------------------------------------------------------------------------
+// 判定文件名是否合法，公有方法
 func isFilenameValid(filename string) bool {
 	if len(filename) > 128 ||
 		strings.Count(filename, "/") > 0 ||
@@ -116,13 +93,15 @@ func isFilenameValid(filename string) bool {
 		strings.Count(filename, "<") > 0 ||
 		strings.Count(filename, ">") > 0 ||
 		strings.Count(filename, "\"") > 0 {
-		fmt.Println("filename not valid: ", filename)
+		fmt.Println("警告：文件名称不合法，名称为：", filename)
 		return false
 	} else {
 		return true
 	}
 }
 
+// -----------------------------------------------------------------------------
+// 判定路径是否合法，公有方法
 func isPathFormatValid(path string) bool {
 	if len(path) < 1 ||
 		len(path) > 256 ||
@@ -138,7 +117,7 @@ func isPathFormatValid(path string) bool {
 		strings.Count(path, "<") > 0 ||
 		strings.Count(path, ">") > 0 ||
 		strings.Count(path, "\"") > 0 {
-		fmt.Println("filepath not valid: ", path)
+		fmt.Println("警告：文件路径不合法，路径为：", path)
 		return false
 	} else {
 		return true

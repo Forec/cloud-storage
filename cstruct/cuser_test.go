@@ -1,21 +1,8 @@
 /*
-author: Forec
-last edit date: 2016/11/13
-email: forec@bupt.edu.cn
-LICENSE
-Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
-
-Permission to use, copy, modify, and/or distribute this code for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+作者: Forec
+最后编辑日期: 2016/12/20
+邮箱：forec@bupt.edu.cn
+关于此文件：CUser 结构的测试代码
 */
 
 package cstruct
@@ -25,64 +12,52 @@ import (
 	"testing"
 )
 
+// 测试工厂方法
 func TestNewCuser(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	if u == nil {
-		t.Errorf("CUser: NewCuser function failed")
+		t.Errorf("错误：CUser 工厂方法失败")
 	}
 }
 
+// 测试获取用户名
 func TestGetUsername(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	if u == nil || u.GetUsername() != "default" {
-		t.Errorf("CUser: GetUsername function failed")
+		t.Errorf("错误：CUser 获取用户名失败")
 	}
 }
 
+// 测试获取用户编号
 func TestGetId(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	if u == nil || u.GetId() != 0 {
-		t.Errorf("CUser: GetId function failed")
+		t.Errorf("错误：CUser 获取编号失败")
 	}
 }
 
+// 测试获取用户 token
 func TestGetToken(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	if u == nil || u.GetToken() != "" {
-		t.Errorf("CUser: GetToken function failed")
+		t.Errorf("错误：CUser 获取 token 失败")
 	}
 }
 
-func TestAddUFile(t *testing.T) {
-	u := NewCUser("default", 0, ".")
-	c := NewCFile(int64(10086), int64(65536))
-	uf := NewUFile(c, u, "userfile", "./user/files/")
-	if u.AddUFile(uf) != true {
-		t.Errorf("CUser: AddUFile function failed")
-	}
-}
-
-func TestRemoveUFile(t *testing.T) {
-	u := NewCUser("default", int64(12345), ".")
-	c := NewCFile(int64(10086), int64(65536))
-	uf := NewUFile(c, u, "userfile", "./user/files/")
-	if u.AddUFile(uf) != true || u.RemoveUFile(uf) != true {
-		t.Errorf("CUser: RemoveUFile function failed")
-	}
-}
-
+// 测试增加新活动连接
 func TestAddTransmitter(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	c := trans.NewTransmitter(nil, 0, nil)
 	if u.AddTransmit(c) != true {
-		t.Errorf("CUser: AddTransmitter function failed")
+		t.Errorf("错误：CUser 增加活动连接失败")
 	}
 }
 
+// 测试移除活动连接
 func TestRemoveTransmitter(t *testing.T) {
 	u := NewCUser("default", 0, ".")
 	c := trans.NewTransmitter(nil, 0, nil)
 	if u.AddTransmit(c) != true || u.RemoveTransmit(c) != true {
-		t.Errorf("CUser: RemoveTransmitter function failed")
+		t.Errorf("错误：CUser 移除活动连接失败失败")
 	}
 }

@@ -1,21 +1,8 @@
 /*
-author: Forec
-last edit date: 2016/11/13
-email: forec@bupt.edu.cn
-LICENSE
-Copyright (c) 2015-2017, Forec <forec@bupt.edu.cn>
-
-Permission to use, copy, modify, and/or distribute this code for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+作者: Forec
+最后编辑日期: 2016/12/20
+邮箱：forec@bupt.edu.cn
+关于此文件：云服务器传输器测试代码
 */
 
 package transmit
@@ -29,22 +16,30 @@ import (
 	"time"
 )
 
+// 测试用缓冲区长度
 const BUFSIZE int64 = 4096 * 1024
+
+// 测试用传输文件相对路径
 const test_in_filename string = "test_in.txt"
+
+// 测试用输出文件相对路径
 const test_out_filename string = "test_out.txt"
 
+// 测试用传输客户端
 func client_test(t *testing.T) {
 	time.Sleep(time.Second)
 	cconn, err := net.Dial("tcp", "127.0.0.1:10086")
 	if err != nil {
-		fmt.Println("ERROR: Error dialing", err.Error())
+		fmt.Println("错误：连接服务器期间断开", err.Error())
 		return
 	}
 	defer cconn.Close()
+
+	// 打开接收文件句柄
 	file, err := os.OpenFile(test_out_filename,
 		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
-		fmt.Println("ERROR: Cannot Open TestOutFile")
+		fmt.Println("错误：无法获取接收到文件的句柄")
 		return
 	}
 	defer file.Close()
@@ -53,62 +48,68 @@ func client_test(t *testing.T) {
 	ts.RecvToWriter(fileWriter)
 	recvB, err := ts.RecvBytes()
 	if err != nil {
-		t.Errorf("ERROR: Cannot receive bytes")
+		t.Errorf("错误：接收数据期间异常断开")
 		return
 	}
 	if string(recvB) != "helloworld" {
-		t.Errorf("ERROR: Receive bytes error")
+		t.Errorf("错误：接收到的字节流与原字节流不同")
 		return
 	}
 	return
 }
 
+// 测试用传输服务器
 func TestTransmission(t *testing.T) {
+	// 获取待发送文件句柄
 	file, err := os.Open(test_in_filename)
 	if err != nil {
-		t.Errorf("Transmit: Cannot Open TestInFile")
+		t.Errorf("传输错误：无法获取待发送文件句柄")
 		return
 	}
 	defer file.Close()
+
+	// 获取本地待发送文件大小
 	fileReader := bufio.NewReader(file)
 	totalFileLength, err := GetFileSize(test_in_filename)
 	if err != nil {
-		t.Errorf("Transmit: GetFileSize function failed")
+		t.Errorf("传输错误：无法获取本地文件大小")
 		return
 	}
 
-	// test server
+	// 启动传输服务器
 	listener, err := net.Listen("tcp", "127.0.0.1:10086")
 	if err != nil {
-		fmt.Println("test server starting with an error, break down...")
+		fmt.Println("错误：测试服务器遇到了问题，即将宕机")
 		return
 	}
 	defer listener.Close()
+
+	// 启动客户端测试协程
 	go client_test(t)
 	sconn, err := listener.Accept()
 	if err != nil {
-		fmt.Println("Error accepting", err.Error())
+		fmt.Println("错误：接收连接期间失败，错误信息：", err.Error())
 		return
 	}
-	fmt.Println("Rececive connection request from",
-		sconn.RemoteAddr().String())
-	// 128bits aes
+	fmt.Println("接收到连接请求，来自 ", sconn.RemoteAddr().String())
+
+	// 测试 128 位 AES 模块传输
 	tr := NewTransmitter(sconn, BUFSIZE, []byte("1234567890123456"))
 	tr.SendFromReader(fileReader, int64(totalFileLength))
 	tr.SendBytes([]byte("helloworld"))
 	time.Sleep(time.Second * 2)
 	file.Close()
 
-	// verify received
+	// 校验接收和发送的文件一致
 	vfile, err := os.Open(test_out_filename)
 	if err != nil {
-		t.Errorf("Transmit: Cannot Open TestOutFile")
+		t.Errorf("传输错误：无法获取接收到文件的句柄")
 		return
 	}
 	defer vfile.Close()
 	rfile, err := os.Open(test_in_filename)
 	if err != nil {
-		t.Errorf("Transmit: Cannot Open TestOutFile")
+		t.Errorf("传输错误：无法获取发送文件的句柄")
 		return
 	}
 	defer rfile.Close()
@@ -122,9 +123,8 @@ func TestTransmission(t *testing.T) {
 		if err1 != nil && err2 != nil {
 			break
 		} else if err != nil || err2 != nil || rbyte != vbyte {
-			t.Errorf("Transmit: Received File Is Not Same With Origin File")
+			t.Errorf("传输错误：接收到的文件和发送的文件不同")
 			break
 		}
 	}
-
 }
