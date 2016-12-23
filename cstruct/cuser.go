@@ -62,6 +62,7 @@ func NewCUser(username string, uid int64, curpath string) *cuser {
 	u := new(cuser)
 	u.listen = nil
 	u.id = uid
+	u.nickname = ""
 	u.username = username
 	u.curpath = curpath
 	u.worklist = nil

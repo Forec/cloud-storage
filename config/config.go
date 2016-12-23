@@ -32,7 +32,7 @@ const MAXTRANSMITTER = 20
 const DATABASE_TYPE = "sqlite3"
 
 // 服务器系统使用数据库路径
-const DATABASE_PATH = "F:\\Develop\\Python\\cloud-storage\\work.db"
+const DATABASE_PATH = "work.db"
 
 // 服务器系统初始化用户池大小
 const START_USER_LIST = 10

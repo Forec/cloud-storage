@@ -214,6 +214,7 @@ func (c *Client) Run() {
 	}
 
 	for {
+		fmt.Print("请输入命令：")
 		// 读取用户输入命令
 		input, err := inputReader.ReadString('\n')
 		if err != nil {

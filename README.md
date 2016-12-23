@@ -1,14 +1,15 @@
-# 顶点云
+
+# 此仓库不再更新，项目代码已经合并且迁移到 [顶点云](https://github.com/Forec/zenith-cloud) ！
+
+# 此仓库不再更新，项目代码已经合并且迁移到 [顶点云](https://github.com/Forec/zenith-cloud) ！
+
+# 此仓库不再更新，项目代码已经合并且迁移到 [顶点云](https://github.com/Forec/zenith-cloud) ！
 
 [![License](http://7xktmz.com1.z0.glb.clouddn.com/license-UDL.svg)](https://github.com/Forec/cloud-storage/blob/master/LICENSE) 
 [![Build Status](https://travis-ci.org/Forec/cloud-storage.png)](https://travis-ci.org/Forec/cloud-storage) 
-[![Doc](http://7xktmz.com1.z0.glb.clouddn.com/docs-icon.svg)](http://blog.forec.cn/columns/cloud-storage.html)
+[![Documentation Status](https://readthedocs.org/projects/zenith-cloud/badge/?version=latest)](http://zenith-cloud.readthedocs.io/zh_CN/latest/?badge=latest)
 
 > A simple package written in Golang 1.7.3 for building cloud storage server or client, also a task for my 2016 course design. you can use the code under limit of the license in this repository.
-
-[**查看中文版项目介绍**](https://blog.forec.cn/2016/11/12/cloud-storage-system/)  
-
-与项目同步更新的中文指南发布在我的博客 [**专栏**](http://blog.forec.cn/columns/cloud-storage.html) **《简易云存储系统设计与实现》**中。此 README 将在项目完成后统一更新，项目完成前 README 中的内容可能与项目不统一。
 
 ## Theory
 ### File Store

@@ -48,12 +48,13 @@ func (u *cuser) DealWithRequests(db *sql.DB) {
 	if avatar_link == "" { // 用户不存在默认头像链接，发送 none
 		avatar_link = "none"
 	}
-	isHTTPLink := strings.Contains(avatar_link, ".")
-	if isHTTPLink { // 用户存在自定义头像外链，发送用户 id 及后缀
+	fmt.Println("获取到的头像链接: ", avatar_link)
+	if avatar_link[0] == ':' { // 用户存在自定义头像外链，发送用户 id 及后缀
 		parts := strings.Split(avatar_link, ".")
 		suffix := parts[len(parts)-1]
 		u.listen.SendBytes([]byte(
 			fmt.Sprintf(`%d.%s`, u.id, suffix)))
+		fmt.Println("发送头像链接:", fmt.Sprintf(`%d.%s`, u.id, suffix))
 	} else { // 用户不存在自定义头像外链，发送 avatar 头像链接
 		u.listen.SendBytes([]byte(u.GetAvatar()))
 	}
@@ -486,6 +487,9 @@ func (u *cuser) rm(db *sql.DB, command string) {
 			}
 		}
 	}
+
+	db.Exec(fmt.Sprintf(`update cuser set used=%d where uid=%d`,
+		u.used, u.id)) // 更新用户使用云盘容量
 RM_VERIFY:
 	if valid != -1 {
 		// 删除操作失败返回错误码
@@ -544,7 +548,8 @@ func (u *cuser) fork(db *sql.DB, command string) {
 	}
 
 	// 资源私有 或 资源共享但提取码不正确 或用户为资源所有人
-	if record.private || record.private && record.linkpass != args[2] ||
+	if record.private ||
+		!record.private && record.linkpass != args[2] && record.linkpass != "" ||
 		int64(record.ownerid) == u.id {
 		fmt.Println("错误：用户无法 Fork，资源私有 或 提取码不正确 或 用户已拥有资源")
 		valid = 3 // 用户不具有 Fork 资格
@@ -729,6 +734,9 @@ func (u *cuser) fork(db *sql.DB, command string) {
 			}
 		}
 	}
+
+	db.Exec(fmt.Sprintf(`update cuser set used=%d where uid=%d`,
+		u.used, u.id)) // 更新用户使用云盘容量
 FORK_VERIFY:
 	if valid != -1 {
 		// Fork 失败时返回错误码
@@ -952,6 +960,10 @@ func (u *cuser) cp(db *sql.DB, command string) {
 			}
 		}
 	}
+
+	db.Exec(fmt.Sprintf(`update cuser set used=%d where uid=%d`,
+		u.used, u.id)) // 更新用户使用的云盘容量
+
 CP_VERIFY:
 	if !valid {
 		// 拷贝请求失败返回 400 错误码
@@ -1102,7 +1114,7 @@ MV_VERIFY:
 // -----------------------------------------------------------------------------
 // touch：用户资源创建请求处理函数
 func (u *cuser) touch(db *sql.DB, command string) {
-	// 指令格式：TOUCH<SEP>创建文件名<SEP>创建路径<SEP>资源类型（文件/目录）
+	// 指令格式：TOUCH<SEP>创建文件名<SEP>创建路径<SEP>资源类型（是否为目录）
 	var valid bool = true
 	var execString string
 	var subpaths []path_name
